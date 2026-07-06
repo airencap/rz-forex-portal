@@ -1,0 +1,88 @@
+import type { CurrencyPair } from './currency'
+import type { Money } from './money'
+import type { QuoteKind } from './quote'
+
+export const PAYMENT_STATES = [
+  'draft',
+  'quoted',
+  'booked',
+  'funds_pending',
+  'in_flight',
+  'settled',
+  'failed',
+  'cancelled',
+  'returned',
+] as const
+export type PaymentState = (typeof PAYMENT_STATES)[number]
+
+/** Explicit state machine — the only legal transitions. */
+export const PAYMENT_TRANSITIONS: Record<PaymentState, readonly PaymentState[]> = {
+  draft: ['quoted', 'cancelled'],
+  quoted: ['booked', 'cancelled'],
+  booked: ['funds_pending', 'cancelled'],
+  funds_pending: ['in_flight', 'cancelled', 'failed'],
+  in_flight: ['settled', 'failed', 'returned'],
+  settled: [],
+  failed: [],
+  cancelled: [],
+  returned: [],
+}
+
+export function canTransition(from: PaymentState, to: PaymentState): boolean {
+  return PAYMENT_TRANSITIONS[from].includes(to)
+}
+
+/** The happy path shown on the tracker timeline. */
+export const HAPPY_PATH: readonly PaymentState[] = [
+  'booked',
+  'funds_pending',
+  'in_flight',
+  'settled',
+]
+
+export const STATE_LABELS: Record<PaymentState, string> = {
+  draft: 'Draft',
+  quoted: 'Quoted',
+  booked: 'Booked',
+  funds_pending: 'Awaiting funds',
+  in_flight: 'In flight',
+  settled: 'Settled',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+  returned: 'Returned',
+}
+
+export interface StateChange {
+  state: PaymentState
+  at: string
+}
+
+export interface FundingInstructions {
+  accountName: string
+  bsb: string
+  accountNumber: string
+  reference: string
+}
+
+export interface Payment {
+  id: string
+  /** Human booking reference, e.g. RZ-2026-000141 */
+  reference: string
+  clientId: string
+  beneficiaryId: string
+  beneficiaryName: string
+  pair: CurrencyPair
+  kind: QuoteKind
+  sellAmount: Money
+  buyAmount: Money
+  /** Pricing snapshot — ledger must reproduce revenue per trade. */
+  clientRate: number
+  midRate: number
+  spreadBps: number
+  fee: Money
+  state: PaymentState
+  history: StateChange[]
+  valueDate: string
+  createdAt: string
+  funding: FundingInstructions
+}

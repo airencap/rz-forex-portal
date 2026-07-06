@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rz-forex-portal",
+      "runtimeExecutable": "/Users/bachirn/.local/node/bin/npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/bachirn/Downloads/rz-forex-portal/app"],
+      "port": 5173
+    }
+  ]
+}
