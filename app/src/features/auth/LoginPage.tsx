@@ -5,13 +5,14 @@ import { Button } from '../../components/ui/Button'
 import { SelectField, TextField } from '../../components/ui/Field'
 import { useServices } from '../../services'
 import { ROLE_LABELS, useSession, type Role } from '../../store/session'
-import { activeTheme } from '../../theme'
+import { useTheme } from '../../store/theme'
 
 const ROLES: Role[] = ['client_user', 'client_admin', 'ops_user']
 
 export function LoginPage() {
   const services = useServices()
   const login = useSession((s) => s.login)
+  const theme = useTheme((s) => s.theme)
   const navigate = useNavigate()
 
   const [name, setName] = useState('Priya Sharma')
@@ -31,7 +32,7 @@ export function LoginPage() {
     e.preventDefault()
     if (!clientId) return
     login(name.trim() || 'Demo User', role, clientId)
-    navigate('/')
+    navigate(role === 'ops_user' ? '/ops' : '/')
   }
 
   return (
@@ -39,9 +40,9 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-accent text-xl font-bold text-white">
-            {activeTheme.logoMark}
+            {theme.logoMark}
           </span>
-          <h1 className="text-2xl font-bold text-white">{activeTheme.productName}</h1>
+          <h1 className="text-2xl font-bold text-white">{theme.productName}</h1>
           <p className="mt-1 text-sm text-white/60">Cross-border FX client portal</p>
         </div>
 
@@ -69,7 +70,7 @@ export function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-white/40">{activeTheme.companyLine}</p>
+        <p className="mt-6 text-center text-xs text-white/40">{theme.companyLine}</p>
       </div>
     </div>
   )

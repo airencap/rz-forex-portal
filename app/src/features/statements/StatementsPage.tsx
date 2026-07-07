@@ -10,7 +10,7 @@ import { downloadCsv } from '../../lib/csv'
 import { useServices } from '../../services'
 import type { Statement } from '../../services/types'
 import { useSession } from '../../store/session'
-import { activeTheme } from '../../theme'
+import { useTheme } from '../../store/theme'
 
 function isoDaysAgo(days: number): string {
   return new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 10)
@@ -38,6 +38,7 @@ function exportCsv(statement: Statement): void {
 export function StatementsPage() {
   const services = useServices()
   const clientId = useSession((s) => s.clientId)!
+  const theme = useTheme((s) => s.theme)
 
   const [currency, setCurrency] = useState<Currency>('AUD')
   const [from, setFrom] = useState(isoDaysAgo(90))
@@ -109,8 +110,8 @@ export function StatementsPage() {
       {/* printable statement document */}
       <Card>
         <div className="mb-4 hidden border-b border-gray-200 pb-4 print:block">
-          <p className="text-lg font-bold text-brand">{activeTheme.productName} — Account statement</p>
-          <p className="text-xs text-gray-500">{activeTheme.companyLine}</p>
+          <p className="text-lg font-bold text-brand">{theme.productName} — Account statement</p>
+          <p className="text-xs text-gray-500">{theme.companyLine}</p>
         </div>
 
         {isPending || !statement ? (

@@ -30,6 +30,31 @@ export const rzForexTheme: Theme = {
   fontFamily: 'Arial, Helvetica, system-ui, sans-serif',
 }
 
+/**
+ * Sample partner skin proving the white-label model: same portal, different
+ * product identity, still operated under AW Fintech's licence.
+ */
+export const novaPayTheme: Theme = {
+  productName: 'NovaPay FX',
+  companyLine: 'NovaPay FX is a product of AW Fintech Pty Ltd · ACN 125 839 572 · AFSL 443886',
+  logoMark: 'N▲',
+  colors: {
+    brand: '#2E1065',
+    brandSoft: '#4C1D95',
+    accent: '#F59E0B',
+    accentSoft: '#FEF3C7',
+    surface: '#FAF7F2',
+  },
+  fontFamily: 'Arial, Helvetica, system-ui, sans-serif',
+}
+
+export type ThemeId = 'rz-forex' | 'novapay'
+
+export const THEMES: Record<ThemeId, Theme> = {
+  'rz-forex': rzForexTheme,
+  novapay: novaPayTheme,
+}
+
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement.style
   root.setProperty('--rz-brand', theme.colors.brand)
@@ -40,5 +65,3 @@ export function applyTheme(theme: Theme): void {
   root.setProperty('--rz-font', theme.fontFamily)
   document.title = `${theme.productName} — Client Portal`
 }
-
-export const activeTheme = rzForexTheme
