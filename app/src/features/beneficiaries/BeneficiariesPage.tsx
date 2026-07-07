@@ -11,7 +11,7 @@ import {
   type Beneficiary,
   type BeneficiaryDraft,
   type Currency,
-} from '../../domain'
+} from '@rz/domain'
 import { useServices } from '../../services'
 import { useSession } from '../../store/session'
 import { BeneficiaryForm } from './BeneficiaryForm'

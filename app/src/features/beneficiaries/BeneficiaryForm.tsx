@@ -8,7 +8,7 @@ import {
   type BeneficiaryDraft,
   type BeneficiaryFieldErrors,
   type Currency,
-} from '../../domain'
+} from '@rz/domain'
 
 const EMPTY: BeneficiaryDraft = { name: '', country: '', bankName: '', accountNumber: '', routingCode: '' }
 

@@ -1,5 +1,5 @@
-import { money, type Currency, type Money } from '../../domain'
-import type { Statement, StatementEntry, StatementRange } from '../types'
+import { money, type Currency, type Money } from '@rz/domain'
+import type { Statement, StatementEntry, StatementRange } from '@rz/domain'
 import * as db from './db'
 
 /**

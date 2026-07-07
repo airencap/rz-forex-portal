@@ -15,7 +15,7 @@ import {
   pairKey,
   toMinor,
   type ForwardContract,
-} from '../../domain'
+} from '@rz/domain'
 import { useServices } from '../../services'
 import { useSession } from '../../store/session'
 

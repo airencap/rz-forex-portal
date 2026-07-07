@@ -7,8 +7,8 @@ import {
   type PaymentState,
   type Quote,
   type StateChange,
-} from '../../domain'
-import type { Balance, ClientEntity } from '../types'
+} from '@rz/domain'
+import type { Balance, ClientEntity } from '@rz/domain'
 
 /**
  * Seeded in-memory book. Deterministic so demos are repeatable; volumes are

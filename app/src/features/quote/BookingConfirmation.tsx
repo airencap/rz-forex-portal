@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
-import { formatMoney, type Payment } from '../../domain'
+import { formatMoney, type Payment } from '@rz/domain'
 
 export function BookingConfirmation({ payment, onNewPayment }: { payment: Payment; onNewPayment: () => void }) {
   return (

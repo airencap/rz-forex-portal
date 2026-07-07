@@ -17,7 +17,7 @@ import {
   type Currency,
   type Payment,
   type PaymentState,
-} from '../../domain'
+} from '@rz/domain'
 import { downloadCsv } from '../../lib/csv'
 import { useServices } from '../../services'
 import { useSession } from '../../store/session'

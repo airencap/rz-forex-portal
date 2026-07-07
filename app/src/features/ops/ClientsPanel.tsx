@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SkeletonRows } from '../../components/ui/Skeleton'
-import { pairKey } from '../../domain'
+import { pairKey } from '@rz/domain'
 import { useServices } from '../../services'
 
 export function ClientsPanel() {

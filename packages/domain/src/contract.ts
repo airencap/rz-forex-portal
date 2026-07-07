@@ -8,7 +8,7 @@ import type {
   PaymentState,
   Quote,
   QuoteRequest,
-} from '../domain'
+} from './index'
 
 /**
  * The service layer contract. UI code depends ONLY on these interfaces;

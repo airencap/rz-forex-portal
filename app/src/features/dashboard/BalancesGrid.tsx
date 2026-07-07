@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
-import { CURRENCY_FLAGS, CURRENCY_NAMES, formatMoney } from '../../domain'
+import { CURRENCY_FLAGS, CURRENCY_NAMES, formatMoney } from '@rz/domain'
 import { useServices } from '../../services'
 
 export function BalancesGrid({ clientId }: { clientId: string }) {

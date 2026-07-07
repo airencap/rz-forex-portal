@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { SkeletonRows } from '../../components/ui/Skeleton'
-import { type BeneficiaryDraft, type Currency } from '../../domain'
+import { type BeneficiaryDraft, type Currency } from '@rz/domain'
 import { useServices } from '../../services'
 import { BeneficiaryForm } from '../beneficiaries/BeneficiaryForm'
 

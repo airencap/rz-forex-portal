@@ -4,9 +4,9 @@ import { Link, Navigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SkeletonRows } from '../../components/ui/Skeleton'
-import { formatMoney, money, pairKey, toMinor } from '../../domain'
+import { formatMoney, money, pairKey, toMinor } from '@rz/domain'
 import { useServices } from '../../services'
-import type { ApprovalRule } from '../../services/types'
+import type { ApprovalRule } from '@rz/domain'
 import { useSession } from '../../store/session'
 
 function RuleSettings({ clientId }: { clientId: string }) {

@@ -5,7 +5,7 @@ import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { formatMoney, pairKey, PAYMENT_STATES, STATE_LABELS, type PaymentState } from '../../domain'
+import { formatMoney, pairKey, PAYMENT_STATES, STATE_LABELS, type PaymentState } from '@rz/domain'
 import { useServices } from '../../services'
 
 export function MonitorPanel() {

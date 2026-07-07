@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "@rz/app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
@@ -15,7 +16,9 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.1",
     "recharts": "^3.9.2",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "@rz/domain": "*",
+    "@rz/mock-services": "*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",

@@ -1,0 +1,11 @@
+{
+  "name": "rz-forex-portal",
+  "private": true,
+  "workspaces": ["app", "server", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev -w app",
+    "dev:api": "npm run dev -w server",
+    "build": "npm run build -w app",
+    "typecheck": "npm run typecheck -w app && npm run typecheck -w server"
+  }
+}

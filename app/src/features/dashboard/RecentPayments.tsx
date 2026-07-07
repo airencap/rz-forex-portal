@@ -5,7 +5,7 @@ import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { formatMoney, pairKey } from '../../domain'
+import { formatMoney, pairKey } from '@rz/domain'
 import { useServices } from '../../services'
 
 export function RecentPayments({ clientId }: { clientId: string }) {

@@ -1,4 +1,4 @@
-import { STATE_LABELS, type PaymentState } from '../../domain'
+import { STATE_LABELS, type PaymentState } from '@rz/domain'
 
 const colors: Record<PaymentState, string> = {
   draft: 'bg-gray-100 text-gray-600',

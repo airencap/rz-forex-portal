@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Card } from '../../components/ui/Card'
 import { SkeletonRows } from '../../components/ui/Skeleton'
-import { formatMoney, pairKey } from '../../domain'
+import { formatMoney, pairKey } from '@rz/domain'
 import { useServices } from '../../services'
 
 export function PendingActions({ clientId }: { clientId: string }) {

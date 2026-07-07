@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
-import { formatMoney, formatRate, type ForwardContract } from '../../domain'
+import { formatMoney, formatRate, type ForwardContract } from '@rz/domain'
 
 export function ForwardConfirmation({
   contract,

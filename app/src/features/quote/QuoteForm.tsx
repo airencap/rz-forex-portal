@@ -10,7 +10,7 @@ import {
   type FixedSide,
   type QuoteKind,
   type QuoteRequest,
-} from '../../domain'
+} from '@rz/domain'
 
 function isoDatePlus(days: number): string {
   const d = new Date(Date.now() + days * 24 * 3600 * 1000)

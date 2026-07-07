@@ -1,4 +1,4 @@
-import { pairKey, type CurrencyPair } from '../../domain'
+import { pairKey, type CurrencyPair } from '@rz/domain'
 import { mulberry32 } from './prng'
 
 /** Base mid-market rates for AUD corridors (prototype reference levels). */

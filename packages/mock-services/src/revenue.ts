@@ -1,5 +1,5 @@
-import { pairKey, type Payment } from '../../domain'
-import type { RevenueLine, RevenueReport, StatementRange } from '../types'
+import { pairKey, type Payment } from '@rz/domain'
+import type { RevenueLine, RevenueReport, StatementRange } from '@rz/domain'
 import * as db from './db'
 
 /**

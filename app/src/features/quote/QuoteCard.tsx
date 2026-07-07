@@ -7,7 +7,7 @@ import {
   pairKey,
   quoteSecondsLeft,
   type Quote,
-} from '../../domain'
+} from '@rz/domain'
 
 const QUOTE_VALIDITY_S = 30
 

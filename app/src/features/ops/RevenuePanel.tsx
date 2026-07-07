@@ -4,9 +4,9 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
-import { formatMoney, money } from '../../domain'
+import { formatMoney, money } from '@rz/domain'
 import { useServices } from '../../services'
-import type { RevenueLine } from '../../services/types'
+import type { RevenueLine } from '@rz/domain'
 
 function isoToday(): string {
   return new Date().toISOString().slice(0, 10)

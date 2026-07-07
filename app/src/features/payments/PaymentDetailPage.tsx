@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { formatMoney, formatRate, HAPPY_PATH, pairKey } from '../../domain'
+import { formatMoney, formatRate, HAPPY_PATH, pairKey } from '@rz/domain'
 import { useServices } from '../../services'
 import { PaymentTimeline } from './PaymentTimeline'
 

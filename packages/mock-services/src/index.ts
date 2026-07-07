@@ -11,7 +11,7 @@ import {
   type PaymentState,
   type Quote,
   type QuoteRequest,
-} from '../../domain'
+} from '@rz/domain'
 import type {
   AccountService,
   AdminService,
@@ -28,7 +28,7 @@ import type {
   PaymentService,
   RateService,
   Services,
-} from '../types'
+} from '@rz/domain'
 import * as db from './db'
 import { forwardPointsFor, midRate, rateDirection } from './marketData'
 import { buildRevenueReport } from './revenue'

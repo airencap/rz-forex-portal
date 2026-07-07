@@ -1,4 +1,10 @@
 .DS_Store
+node_modules/
+dist/
+
+# secrets live in the environment, never in the repo
+.env
+.env.local
 
 # scratch copies of CLAUDE.md/SPEC.md — canonical versions live at the repo root
 files/

@@ -1,4 +1,4 @@
-import { HAPPY_PATH, STATE_LABELS, type Payment, type PaymentState } from '../../domain'
+import { HAPPY_PATH, STATE_LABELS, type Payment, type PaymentState } from '@rz/domain'
 
 function formatTs(iso: string): string {
   return new Date(iso).toLocaleString('en-AU', {
