@@ -180,6 +180,11 @@ export function PaymentsListPage() {
                         fwd
                       </span>
                     )}
+                    {p.approval?.status === 'pending' && (
+                      <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700">
+                        needs approval
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 text-gray-500 tabular-nums">
                     {new Date(p.createdAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}

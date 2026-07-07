@@ -46,7 +46,9 @@ export function PaymentDetailPage() {
     )
   }
 
-  const advanceable = HAPPY_PATH.indexOf(payment.state) >= 0 && payment.state !== 'settled'
+  const approvalHold = payment.approval?.status === 'pending'
+  const advanceable =
+    HAPPY_PATH.indexOf(payment.state) >= 0 && payment.state !== 'settled' && !approvalHold
   const awaitingFunding = payment.state === 'booked' || payment.state === 'funds_pending'
 
   return (
@@ -70,6 +72,26 @@ export function PaymentDetailPage() {
         </div>
         <StatusChip state={payment.state} />
       </div>
+
+      {approvalHold && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>Awaiting second approval.</strong> This payment exceeds the client's approval
+          threshold and holds here until a client admin approves it in the Approvals queue.
+        </div>
+      )}
+      {payment.approval?.status === 'approved' && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Second approval granted by {payment.approval.decidedBy}
+          {payment.approval.decidedAt &&
+            ` on ${new Date(payment.approval.decidedAt).toLocaleString('en-AU')}`}
+          .
+        </div>
+      )}
+      {payment.approval?.status === 'rejected' && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Rejected at second approval by {payment.approval.decidedBy} — payment cancelled.
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Payment tracker">

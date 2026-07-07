@@ -25,8 +25,12 @@ export function PendingActions({ clientId }: { clientId: string }) {
     )
   }
 
+  const awaitingApproval = (paymentsQuery.data ?? []).filter(
+    (p) => p.approval?.status === 'pending',
+  )
   const awaitingFunds = (paymentsQuery.data ?? []).filter(
-    (p) => p.state === 'booked' || p.state === 'funds_pending',
+    (p) =>
+      (p.state === 'booked' || p.state === 'funds_pending') && p.approval?.status !== 'pending',
   )
   const FOURTEEN_DAYS = 14 * 24 * 3600 * 1000
   const approachingForwards = (forwardsQuery.data ?? []).filter(
@@ -37,6 +41,12 @@ export function PendingActions({ clientId }: { clientId: string }) {
   )
 
   const items = [
+    ...awaitingApproval.map((p) => ({
+      key: `appr-${p.id}`,
+      to: `/payments/${p.id}`,
+      icon: '✋',
+      text: `${p.reference} · ${formatMoney(p.sellAmount)} to ${p.beneficiaryName} needs second approval`,
+    })),
     ...awaitingFunds.map((p) => ({
       key: p.id,
       to: `/payments/${p.id}`,
