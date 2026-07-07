@@ -58,10 +58,21 @@ export interface NewBeneficiary {
 export interface BeneficiaryService {
   list(clientId: string, currency?: Currency): Promise<Beneficiary[]>
   create(input: NewBeneficiary): Promise<Beneficiary>
+  /** Updating bank details resets verification. */
+  update(id: string, input: NewBeneficiary): Promise<Beneficiary>
+  /** Mock verification flow — marks the beneficiary verified. */
+  verify(id: string): Promise<Beneficiary>
 }
 
 export interface ForwardService {
   list(clientId: string): Promise<ForwardContract[]>
+  /** Books a live forward quote into an open contract. Rejects expired quotes. */
+  book(quoteId: string, beneficiaryId: string): Promise<ForwardContract>
+  /**
+   * Draws down part (or all) of an open contract at the locked rate,
+   * creating a payment that enters the state machine.
+   */
+  drawdown(id: string, sellAmountMinor: number): Promise<{ contract: ForwardContract; payment: Payment }>
 }
 
 export interface Balance {
@@ -71,8 +82,33 @@ export interface Balance {
   pending: Money
 }
 
+export interface StatementEntry {
+  date: string
+  description: string
+  reference: string
+  /** Exactly one of debit/credit is set, except the opening-balance row. */
+  debit: Money | null
+  credit: Money | null
+  /** Running balance after this entry. */
+  balance: Money
+}
+
+export interface StatementRange {
+  from: string // ISO date, inclusive
+  to: string // ISO date, inclusive
+}
+
+export interface Statement {
+  currency: Currency
+  range: StatementRange
+  opening: Money
+  closing: Money
+  entries: StatementEntry[]
+}
+
 export interface AccountService {
   getBalances(clientId: string): Promise<Balance[]>
+  getStatement(clientId: string, currency: Currency, range: StatementRange): Promise<Statement>
 }
 
 export interface ClientEntity {

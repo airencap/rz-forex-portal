@@ -4,7 +4,9 @@ import {
   isQuoteExpired,
   money,
   toMinor,
+  validateBeneficiary,
   type Beneficiary,
+  type ForwardContract,
   type Payment,
   type PaymentState,
   type Quote,
@@ -26,6 +28,7 @@ import type {
 } from '../types'
 import * as db from './db'
 import { forwardPointsFor, midRate, rateDirection } from './marketData'
+import { buildStatement } from './statements'
 
 const LATENCY_MS = 250
 const QUOTE_VALIDITY_S = 30
@@ -118,6 +121,8 @@ const rates: RateService = {
   async bookQuote(quoteId, beneficiaryId) {
     const quote = db.quotes.get(quoteId)
     if (!quote) throw new Error('Quote not found')
+    if (quote.kind === 'forward')
+      throw new Error('Forward quotes are booked as contracts via ForwardService.book')
     if (isQuoteExpired(quote))
       throw new Error('Quote has expired — request a new quote to continue')
     const bene = db.beneficiaries.find((b) => b.id === beneficiaryId)
@@ -198,8 +203,7 @@ const beneficiaryService: BeneficiaryService = {
   },
 
   async create(input: NewBeneficiary) {
-    if (!input.name.trim() || !input.bankName.trim() || !input.accountNumber.trim())
-      throw new Error('Name, bank and account number are required')
+    assertValidBeneficiary(input)
     const bene: Beneficiary = {
       id: db.nextId('bn'),
       clientId: input.clientId,
@@ -215,11 +219,117 @@ const beneficiaryService: BeneficiaryService = {
     db.beneficiaries.push(bene)
     return delay(bene)
   },
+
+  async update(id, input) {
+    const bene = db.beneficiaries.find((b) => b.id === id)
+    if (!bene) throw new Error('Beneficiary not found')
+    assertValidBeneficiary(input)
+    const detailsChanged =
+      input.accountNumber.trim() !== bene.accountNumber ||
+      input.routingCode.trim() !== bene.routingCode ||
+      input.bankName.trim() !== bene.bankName
+    bene.name = input.name.trim()
+    bene.country = input.country.trim()
+    bene.bankName = input.bankName.trim()
+    bene.accountNumber = input.accountNumber.trim()
+    bene.routingCode = input.routingCode.trim()
+    if (detailsChanged) bene.verified = false
+    return delay(bene)
+  },
+
+  async verify(id) {
+    const bene = db.beneficiaries.find((b) => b.id === id)
+    if (!bene) throw new Error('Beneficiary not found')
+    bene.verified = true
+    return delay(bene)
+  },
+}
+
+function assertValidBeneficiary(input: NewBeneficiary): void {
+  const errors = validateBeneficiary(input.currency, input)
+  const first = Object.values(errors)[0]
+  if (first) throw new Error(first)
 }
 
 const forwards: ForwardService = {
   async list(clientId) {
     return delay(db.forwards.filter((f) => f.clientId === clientId))
+  },
+
+  async book(quoteId, beneficiaryId) {
+    const quote = db.quotes.get(quoteId)
+    if (!quote) throw new Error('Quote not found')
+    if (quote.kind !== 'forward') throw new Error('Not a forward quote')
+    if (isQuoteExpired(quote))
+      throw new Error('Quote has expired — request a new quote to continue')
+    const bene = db.beneficiaries.find((b) => b.id === beneficiaryId)
+    if (!bene) throw new Error('Beneficiary not found')
+    if (bene.currency !== quote.pair.buy)
+      throw new Error('Beneficiary currency does not match quote')
+
+    const contract: ForwardContract = {
+      id: db.nextId('fw'),
+      reference: db.nextForwardReference(),
+      clientId: quote.clientId,
+      pair: quote.pair,
+      beneficiaryId: bene.id,
+      beneficiaryName: bene.name,
+      lockedRate: quote.clientRate,
+      midRateAtBooking: quote.midRate,
+      spreadBps: quote.spreadBps,
+      notional: quote.sellAmount,
+      buyAmount: quote.buyAmount,
+      drawnDownMinor: 0,
+      bookingDate: new Date().toISOString().slice(0, 10),
+      valueDate: quote.valueDate,
+      status: 'open',
+      mtmMinor: 0,
+    }
+    db.forwards.unshift(contract)
+    db.quotes.delete(quoteId)
+    return delay(contract)
+  },
+
+  async drawdown(id, sellAmountMinor) {
+    const contract = db.forwards.find((f) => f.id === id)
+    if (!contract) throw new Error('Forward contract not found')
+    if (contract.status !== 'open') throw new Error('Contract is not open')
+    const remaining = contract.notional.minor - contract.drawnDownMinor
+    if (sellAmountMinor <= 0) throw new Error('Drawdown amount must be positive')
+    if (sellAmountMinor > remaining)
+      throw new Error(`Drawdown exceeds remaining notional (${remaining / 100} AUD left)`)
+
+    const feeMinor = toMinor('AUD', 10)
+    const convertedMajor = Math.max(0, sellAmountMinor - feeMinor) / 100
+    const buyMinor = toMinor(contract.pair.buy, convertedMajor * contract.lockedRate)
+
+    const now = new Date().toISOString()
+    const payment: Payment = {
+      id: db.nextId('pm'),
+      reference: db.nextReference(),
+      clientId: contract.clientId,
+      beneficiaryId: contract.beneficiaryId,
+      beneficiaryName: contract.beneficiaryName,
+      pair: contract.pair,
+      kind: 'forward',
+      sellAmount: money(contract.pair.sell, sellAmountMinor),
+      buyAmount: money(contract.pair.buy, buyMinor),
+      clientRate: contract.lockedRate,
+      midRate: contract.midRateAtBooking,
+      spreadBps: contract.spreadBps,
+      fee: money(contract.pair.sell, feeMinor),
+      state: 'booked',
+      history: [{ state: 'booked', at: now }],
+      valueDate: contract.valueDate,
+      createdAt: now,
+      funding: db.fundingFor(contract.clientId),
+    }
+    db.payments.unshift(payment)
+
+    contract.drawnDownMinor += sellAmountMinor
+    if (contract.drawnDownMinor >= contract.notional.minor) contract.status = 'settled'
+
+    return delay({ contract, payment })
   },
 }
 
@@ -227,6 +337,10 @@ const accounts: AccountService = {
   async getBalances(clientId) {
     const result: Balance[] = db.balances[clientId] ?? []
     return delay(result)
+  },
+
+  async getStatement(clientId, currency, range) {
+    return delay(buildStatement(clientId, currency, range))
   },
 }
 

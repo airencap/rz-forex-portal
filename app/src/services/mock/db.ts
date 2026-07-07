@@ -291,11 +291,14 @@ export const forwards: ForwardContract[] = [
     reference: 'RZF-2026-000031',
     clientId: 'cl-meridian',
     pair: { sell: 'AUD', buy: 'NPR' },
+    beneficiaryId: 'bn-gorkha',
+    beneficiaryName: 'Gorkha Cement Industries Pvt Ltd',
     lockedRate: 89.61,
     midRateAtBooking: 89.3,
     spreadBps: 50,
     notional: money('AUD', toMinor('AUD', 250_000)),
     buyAmount: money('NPR', toMinor('NPR', 250_000 * 89.61)),
+    drawnDownMinor: toMinor('AUD', 90_000),
     bookingDate: '2026-05-12',
     valueDate: '2026-07-15',
     status: 'open',
@@ -306,17 +309,26 @@ export const forwards: ForwardContract[] = [
     reference: 'RZF-2026-000038',
     clientId: 'cl-meridian',
     pair: { sell: 'AUD', buy: 'USD' },
+    beneficiaryId: 'bn-pacifictimber',
+    beneficiaryName: 'Pacific Timber Trading LLC',
     lockedRate: 0.6549,
     midRateAtBooking: 0.6598,
     spreadBps: 50,
     notional: money('AUD', toMinor('AUD', 80_000)),
     buyAmount: money('USD', toMinor('USD', 80_000 * 0.6549)),
+    drawnDownMinor: 0,
     bookingDate: '2026-06-03',
     valueDate: '2026-09-30',
     status: 'open',
     mtmMinor: toMinor('AUD', -620),
   },
 ]
+
+let forwardRefCounter = 38
+export function nextForwardReference(): string {
+  forwardRefCounter += 1
+  return `RZF-2026-${String(forwardRefCounter).padStart(6, '0')}`
+}
 
 export const balances: Record<string, Balance[]> = {
   'cl-meridian': [
