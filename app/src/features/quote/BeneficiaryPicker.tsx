@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
-import { TextField } from '../../components/ui/Field'
 import { SkeletonRows } from '../../components/ui/Skeleton'
-import { BANK_FIELD_LABELS, type Currency } from '../../domain'
+import { type BeneficiaryDraft, type Currency } from '../../domain'
 import { useServices } from '../../services'
+import { BeneficiaryForm } from '../beneficiaries/BeneficiaryForm'
 
 export function BeneficiaryPicker({
   clientId,
@@ -20,7 +20,6 @@ export function BeneficiaryPicker({
   const services = useServices()
   const queryClient = useQueryClient()
   const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ name: '', country: '', bankName: '', accountNumber: '', routingCode: '' })
 
   const { data: beneficiaries, isPending } = useQuery({
     queryKey: ['beneficiaries', clientId, currency],
@@ -28,21 +27,14 @@ export function BeneficiaryPicker({
   })
 
   const createMutation = useMutation({
-    mutationFn: () => services.beneficiaries.create({ clientId, currency, ...form }),
+    mutationFn: (draft: BeneficiaryDraft) =>
+      services.beneficiaries.create({ clientId, currency, ...draft }),
     onSuccess: (bene) => {
       queryClient.invalidateQueries({ queryKey: ['beneficiaries', clientId] })
       onSelect(bene.id)
       setCreating(false)
-      setForm({ name: '', country: '', bankName: '', accountNumber: '', routingCode: '' })
     },
   })
-
-  function handleCreate(e: FormEvent) {
-    e.preventDefault()
-    createMutation.mutate()
-  }
-
-  const labels = BANK_FIELD_LABELS[currency]
 
   if (isPending) return <SkeletonRows rows={2} />
 
@@ -86,52 +78,22 @@ export function BeneficiaryPicker({
       </div>
 
       {creating ? (
-        <form onSubmit={handleCreate} className="space-y-3 rounded-md border border-gray-200 bg-surface p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">New {currency} beneficiary</p>
-          <TextField
-            label="Beneficiary name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
+        <div className="rounded-md border border-gray-200 bg-surface p-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-500">
+            New {currency} beneficiary
+          </p>
+          <BeneficiaryForm
+            currency={currency}
+            submitLabel="Save beneficiary"
+            busy={createMutation.isPending}
+            serverError={createMutation.isError ? (createMutation.error as Error).message : null}
+            onSubmit={(draft) => createMutation.mutate(draft)}
+            onCancel={() => {
+              createMutation.reset()
+              setCreating(false)
+            }}
           />
-          <div className="grid grid-cols-2 gap-3">
-            <TextField
-              label="Country"
-              value={form.country}
-              onChange={(e) => setForm({ ...form, country: e.target.value })}
-            />
-            <TextField
-              label="Bank name"
-              value={form.bankName}
-              onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <TextField
-              label={labels.account}
-              value={form.accountNumber}
-              onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-              required
-            />
-            <TextField
-              label={labels.routing}
-              value={form.routingCode}
-              onChange={(e) => setForm({ ...form, routingCode: e.target.value })}
-            />
-          </div>
-          {createMutation.isError && (
-            <p className="text-sm text-red-600">{(createMutation.error as Error).message}</p>
-          )}
-          <div className="flex gap-2">
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? 'Saving…' : 'Save beneficiary'}
-            </Button>
-            <Button variant="ghost" onClick={() => setCreating(false)}>
-              Cancel
-            </Button>
-          </div>
-        </form>
+        </div>
       ) : (
         <Button variant="secondary" onClick={() => setCreating(true)}>
           + New beneficiary
