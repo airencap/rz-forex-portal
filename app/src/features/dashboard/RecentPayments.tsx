@@ -18,7 +18,14 @@ export function RecentPayments({ clientId }: { clientId: string }) {
   const recent = (data ?? []).slice(0, 6)
 
   return (
-    <Card title="Recent payments">
+    <Card
+      title="Recent payments"
+      action={
+        <Link to="/payments" className="text-xs font-bold text-accent hover:underline">
+          View all →
+        </Link>
+      }
+    >
       {isPending ? (
         <SkeletonRows rows={5} />
       ) : recent.length === 0 ? (
