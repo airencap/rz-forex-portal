@@ -64,6 +64,17 @@ export interface FundingInstructions {
   reference: string
 }
 
+/**
+ * Second-approval metadata. Approval is a gate on top of the state machine,
+ * not a state: a payment sits in `booked` and cannot advance until approved.
+ */
+export interface PaymentApproval {
+  status: 'pending' | 'approved' | 'rejected'
+  thresholdMinor: number
+  decidedBy?: string
+  decidedAt?: string
+}
+
 export interface Payment {
   id: string
   /** Human booking reference, e.g. RZ-2026-000141 */
@@ -81,6 +92,8 @@ export interface Payment {
   spreadBps: number
   fee: Money
   state: PaymentState
+  /** Present when the client's approval rule caught this payment. */
+  approval?: PaymentApproval
   history: StateChange[]
   valueDate: string
   createdAt: string

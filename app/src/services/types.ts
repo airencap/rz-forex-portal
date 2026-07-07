@@ -123,6 +123,46 @@ export interface ClientService {
   getClients(): Promise<ClientEntity[]>
 }
 
+export interface RevenueLine {
+  key: string
+  label: string
+  /** Spread income in AUD minor units, reproduced from per-trade pricing snapshots. */
+  spreadMinor: number
+  feeMinor: number
+  /** Sell-side volume in AUD minor units. */
+  volumeMinor: number
+  trades: number
+}
+
+export interface RevenueReport {
+  range: StatementRange
+  totals: Omit<RevenueLine, 'key' | 'label'>
+  byCorridor: RevenueLine[]
+  byClient: RevenueLine[]
+}
+
+/** Ops-only surface: cross-client monitoring, tiers and revenue. */
+export interface AdminService {
+  setTier(clientId: string, spreadBps: number): Promise<ClientEntity>
+  listAllPayments(): Promise<Array<Payment & { clientName: string }>>
+  getRevenue(range: StatementRange): Promise<RevenueReport>
+}
+
+export interface ApprovalRule {
+  enabled: boolean
+  /** Payments with sell amount above this (AUD minor units) need a second approval. */
+  thresholdMinor: number
+}
+
+export interface ApprovalService {
+  getRule(clientId: string): Promise<ApprovalRule>
+  setRule(clientId: string, rule: ApprovalRule): Promise<ApprovalRule>
+  listPending(clientId: string): Promise<Payment[]>
+  approve(paymentId: string, approver: string): Promise<Payment>
+  /** Rejection cancels the payment. */
+  reject(paymentId: string, approver: string): Promise<Payment>
+}
+
 export interface Services {
   rates: RateService
   payments: PaymentService
@@ -130,4 +170,6 @@ export interface Services {
   forwards: ForwardService
   accounts: AccountService
   clients: ClientService
+  admin: AdminService
+  approvals: ApprovalService
 }

@@ -14,6 +14,9 @@ import {
 } from '../../domain'
 import type {
   AccountService,
+  AdminService,
+  ApprovalRule,
+  ApprovalService,
   Balance,
   BeneficiaryService,
   ClientEntity,
@@ -28,6 +31,7 @@ import type {
 } from '../types'
 import * as db from './db'
 import { forwardPointsFor, midRate, rateDirection } from './marketData'
+import { buildRevenueReport } from './revenue'
 import { buildStatement } from './statements'
 
 const LATENCY_MS = 250
@@ -151,10 +155,19 @@ const rates: RateService = {
       createdAt: now,
       funding: db.fundingFor(quote.clientId),
     }
+    applyApprovalRule(payment)
     db.payments.unshift(payment)
     db.quotes.delete(quoteId)
     return delay(payment)
   },
+}
+
+/** Flags the payment for second approval when the client's rule catches it. */
+function applyApprovalRule(payment: Payment): void {
+  const rule = db.approvalRules[payment.clientId]
+  if (rule?.enabled && payment.sellAmount.minor > rule.thresholdMinor) {
+    payment.approval = { status: 'pending', thresholdMinor: rule.thresholdMinor }
+  }
 }
 
 function transition(payment: Payment, to: PaymentState): Payment {
@@ -182,6 +195,8 @@ const payments: PaymentService = {
   async advance(id) {
     const p = db.payments.find((x) => x.id === id)
     if (!p) throw new Error('Payment not found')
+    if (p.approval?.status === 'pending')
+      throw new Error('Payment is awaiting second approval and cannot proceed')
     const idx = HAPPY_PATH.indexOf(p.state)
     if (idx < 0 || idx === HAPPY_PATH.length - 1)
       throw new Error(`Payment in state "${p.state}" cannot be advanced`)
@@ -351,6 +366,77 @@ const clientService: ClientService = {
   },
 }
 
+const admin: AdminService = {
+  async setTier(clientId, spreadBps) {
+    if (spreadBps < 0 || spreadBps > 300) throw new Error('Spread must be between 0 and 300 bps')
+    const client = db.clients.find((c) => c.id === clientId)
+    if (!client) throw new Error('Client not found')
+    client.tierSpreadBps = spreadBps
+    return delay(client)
+  },
+
+  async listAllPayments() {
+    const result = db.payments
+      .map((p) => ({
+        ...p,
+        clientName: db.clients.find((c) => c.id === p.clientId)?.name ?? p.clientId,
+      }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return delay(result)
+  },
+
+  async getRevenue(range) {
+    return delay(buildRevenueReport(range))
+  },
+}
+
+const approvals: ApprovalService = {
+  async getRule(clientId) {
+    const rule: ApprovalRule = db.approvalRules[clientId] ?? {
+      enabled: false,
+      thresholdMinor: toMinor('AUD', 100_000),
+    }
+    return delay(rule)
+  },
+
+  async setRule(clientId, rule) {
+    if (rule.thresholdMinor <= 0) throw new Error('Threshold must be positive')
+    db.approvalRules[clientId] = { ...rule }
+    return delay(rule)
+  },
+
+  async listPending(clientId) {
+    return delay(
+      db.payments.filter((p) => p.clientId === clientId && p.approval?.status === 'pending'),
+    )
+  },
+
+  async approve(paymentId, approver) {
+    const p = db.payments.find((x) => x.id === paymentId)
+    if (!p?.approval || p.approval.status !== 'pending') throw new Error('Nothing to approve')
+    p.approval = {
+      ...p.approval,
+      status: 'approved',
+      decidedBy: approver,
+      decidedAt: new Date().toISOString(),
+    }
+    return delay(p)
+  },
+
+  async reject(paymentId, approver) {
+    const p = db.payments.find((x) => x.id === paymentId)
+    if (!p?.approval || p.approval.status !== 'pending') throw new Error('Nothing to reject')
+    p.approval = {
+      ...p.approval,
+      status: 'rejected',
+      decidedBy: approver,
+      decidedAt: new Date().toISOString(),
+    }
+    transition(p, 'cancelled')
+    return delay(p)
+  },
+}
+
 export function createMockServices(): Services {
   return {
     rates,
@@ -359,5 +445,7 @@ export function createMockServices(): Services {
     forwards,
     accounts,
     clients: clientService,
+    admin,
+    approvals,
   }
 }

@@ -351,3 +351,28 @@ export const balances: Record<string, Balance[]> = {
 
 /** Live quotes issued this session, by id. */
 export const quotes = new Map<string, Quote>()
+
+/** Second-approval rules per client (client-admin configurable). */
+export const approvalRules: Record<string, { enabled: boolean; thresholdMinor: number }> = {
+  'cl-meridian': { enabled: true, thresholdMinor: toMinor('AUD', 100_000) },
+  'cl-himalaya': { enabled: false, thresholdMinor: toMinor('AUD', 500_000) },
+  'cl-southern': { enabled: true, thresholdMinor: toMinor('AUD', 150_000) },
+}
+
+// a booked payment sitting in the approvals queue, for the demo
+payments.unshift({
+  ...buildPayment(
+    {
+      clientId: 'cl-meridian',
+      beneficiaryId: 'bn-gorkha',
+      sellMajor: 152_000,
+      clientRate: 88.99,
+      midRate: 89.44,
+      spreadBps: 50,
+      state: 'booked',
+      createdAt: '2026-07-06T22:35:00Z',
+    },
+    90,
+  ),
+  approval: { status: 'pending', thresholdMinor: toMinor('AUD', 100_000) },
+})
