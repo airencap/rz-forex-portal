@@ -3,12 +3,14 @@ import { Navigate } from 'react-router-dom'
 import { useSession } from '../../store/session'
 import { ClientsPanel } from './ClientsPanel'
 import { MonitorPanel } from './MonitorPanel'
+import { RailsPanel } from './RailsPanel'
 import { RevenuePanel } from './RevenuePanel'
 
 const TABS = [
   { key: 'revenue', label: 'Revenue' },
   { key: 'clients', label: 'Clients & tiers' },
   { key: 'monitor', label: 'Payment monitor' },
+  { key: 'rails', label: 'Rails' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
@@ -48,6 +50,7 @@ export function OpsPage() {
       {tab === 'revenue' && <RevenuePanel />}
       {tab === 'clients' && <ClientsPanel />}
       {tab === 'monitor' && <MonitorPanel />}
+      {tab === 'rails' && <RailsPanel />}
     </div>
   )
 }

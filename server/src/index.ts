@@ -2,6 +2,17 @@ import cors from '@fastify/cors'
 import { CURRENCIES, type Currency, type CurrencyPair, type QuoteRequest } from '@rz/domain'
 import { createMockServices } from '@rz/mock-services'
 import Fastify from 'fastify'
+import { fileURLToPath } from 'node:url'
+import { noah, noahConfigured, type PricesQuery } from './noah/client'
+import { noahEvaluation } from './noah/evaluation'
+
+// server/.env (gitignored) holds vendor sandbox secrets for local dev;
+// on Render they come from the dashboard environment instead
+try {
+  process.loadEnvFile(fileURLToPath(new URL('../.env', import.meta.url)))
+} catch {
+  /* no .env file — fine in CI/Render */
+}
 
 /**
  * RZ API — Fastify wrapper around the Services contract. Today the
@@ -33,6 +44,23 @@ app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
 })
 
 app.get('/health', async () => ({ ok: true, service: 'rz-api' }))
+
+// --- Noah (banking-rail sandbox under evaluation) ---
+app.get('/api/noah/status', async () => {
+  if (!noahConfigured()) return { configured: false, ok: false }
+  try {
+    const balances = await noah.balances()
+    const count = (balances.Items ?? balances.Balances ?? []).length
+    return { configured: true, ok: true, balanceCount: count }
+  } catch (err) {
+    return { configured: true, ok: false, error: (err as Error).message }
+  }
+})
+
+app.get<{ Querystring: PricesQuery }>('/api/noah/prices', (req) => noah.prices(req.query))
+app.get('/api/noah/channels', () => noah.sellChannels())
+app.get('/api/noah/countries', () => noah.sellCountries())
+app.get('/api/rails/noah/evaluation', () => noahEvaluation())
 
 // --- rates & quotes ---
 app.get<{ Querystring: { clientId: string; pairs: string } }>('/api/rates/indicative', (req) =>
