@@ -45,7 +45,7 @@ export function PendingActions({ clientId }: { clientId: string }) {
     })),
     ...approachingForwards.map((f) => ({
       key: f.id,
-      to: '/',
+      to: '/forwards',
       icon: '⧗',
       text: `Forward ${f.reference} (${pairKey(f.pair)}, ${formatMoney(f.notional)}) settles ${f.valueDate}`,
     })),

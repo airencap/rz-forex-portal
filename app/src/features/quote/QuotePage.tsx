@@ -2,13 +2,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { isQuoteExpired, type Payment, type QuoteRequest } from '../../domain'
+import { isQuoteExpired, type ForwardContract, type Payment, type QuoteRequest } from '../../domain'
 import { useServices } from '../../services'
 import { useSession } from '../../store/session'
 import { BeneficiaryPicker } from './BeneficiaryPicker'
 import { BookingConfirmation } from './BookingConfirmation'
+import { ForwardConfirmation } from './ForwardConfirmation'
 import { QuoteCard } from './QuoteCard'
 import { QuoteForm } from './QuoteForm'
+
+type BookingResult = { kind: 'payment'; payment: Payment } | { kind: 'forward'; contract: ForwardContract }
 
 export function QuotePage() {
   const services = useServices()
@@ -17,19 +20,34 @@ export function QuotePage() {
 
   const [lastRequest, setLastRequest] = useState<QuoteRequest | null>(null)
   const [beneficiaryId, setBeneficiaryId] = useState<string | null>(null)
-  const [booked, setBooked] = useState<Payment | null>(null)
+  const [booked, setBooked] = useState<BookingResult | null>(null)
 
   const quoteMutation = useMutation({
     mutationFn: (req: QuoteRequest) => services.rates.getQuote(req),
   })
 
   const bookMutation = useMutation({
-    mutationFn: ({ quoteId, beneficiaryId }: { quoteId: string; beneficiaryId: string }) =>
-      services.rates.bookQuote(quoteId, beneficiaryId),
-    onSuccess: (payment) => {
-      setBooked(payment)
+    mutationFn: async ({
+      quoteId,
+      beneficiaryId,
+      kind,
+    }: {
+      quoteId: string
+      beneficiaryId: string
+      kind: 'spot' | 'forward'
+    }): Promise<BookingResult> => {
+      if (kind === 'forward') {
+        const contract = await services.forwards.book(quoteId, beneficiaryId)
+        return { kind: 'forward', contract }
+      }
+      const payment = await services.rates.bookQuote(quoteId, beneficiaryId)
+      return { kind: 'payment', payment }
+    },
+    onSuccess: (result) => {
+      setBooked(result)
       quoteMutation.reset()
       queryClient.invalidateQueries({ queryKey: ['payments', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['forwards', clientId] })
       queryClient.invalidateQueries({ queryKey: ['balances', clientId] })
     },
   })
@@ -65,7 +83,11 @@ export function QuotePage() {
     return (
       <div className="mx-auto max-w-2xl">
         <h1 className="mb-4 text-xl font-bold text-brand">New payment</h1>
-        <BookingConfirmation payment={booked} onNewPayment={reset} />
+        {booked.kind === 'payment' ? (
+          <BookingConfirmation payment={booked.payment} onNewPayment={reset} />
+        ) : (
+          <ForwardConfirmation contract={booked.contract} onNewPayment={reset} />
+        )}
       </div>
     )
   }
@@ -107,7 +129,11 @@ export function QuotePage() {
                 <Button
                   className="mt-4 w-full"
                   disabled={!canBook}
-                  onClick={() => quote && beneficiaryId && bookMutation.mutate({ quoteId: quote.id, beneficiaryId })}
+                  onClick={() =>
+                    quote &&
+                    beneficiaryId &&
+                    bookMutation.mutate({ quoteId: quote.id, beneficiaryId, kind: quote.kind })
+                  }
                 >
                   {bookMutation.isPending
                     ? 'Booking…'
