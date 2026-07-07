@@ -4,10 +4,10 @@ import { activeTheme } from '../../theme'
 const navItems: Array<{ to: string; label: string; icon: string; phase2?: boolean }> = [
   { to: '/', label: 'Dashboard', icon: '▦' },
   { to: '/quote', label: 'New payment', icon: '⇄' },
-  { to: '/payments', label: 'Payments', icon: '≡', phase2: true },
-  { to: '/beneficiaries', label: 'Beneficiaries', icon: '☺', phase2: true },
-  { to: '/forwards', label: 'Forwards', icon: '⧗', phase2: true },
-  { to: '/statements', label: 'Statements', icon: '▤', phase2: true },
+  { to: '/payments', label: 'Payments', icon: '≡' },
+  { to: '/beneficiaries', label: 'Beneficiaries', icon: '☺' },
+  { to: '/forwards', label: 'Forwards', icon: '⧗' },
+  { to: '/statements', label: 'Statements', icon: '▤' },
 ]
 
 export function Sidebar() {

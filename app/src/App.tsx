@@ -3,9 +3,13 @@ import { useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { LoginPage } from './features/auth/LoginPage'
+import { BeneficiariesPage } from './features/beneficiaries/BeneficiariesPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
+import { ForwardsPage } from './features/forwards/ForwardsPage'
 import { PaymentDetailPage } from './features/payments/PaymentDetailPage'
+import { PaymentsListPage } from './features/payments/PaymentsListPage'
 import { QuotePage } from './features/quote/QuotePage'
+import { StatementsPage } from './features/statements/StatementsPage'
 import { ServicesProvider } from './services'
 import { activeTheme, applyTheme } from './theme'
 
@@ -30,7 +34,11 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/quote" element={<QuotePage />} />
+              <Route path="/payments" element={<PaymentsListPage />} />
               <Route path="/payments/:id" element={<PaymentDetailPage />} />
+              <Route path="/beneficiaries" element={<BeneficiariesPage />} />
+              <Route path="/forwards" element={<ForwardsPage />} />
+              <Route path="/statements" element={<StatementsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -37,3 +37,19 @@ body {
   outline: 2px solid var(--rz-accent);
   outline-offset: 2px;
 }
+
+/* print view: statement pages print as a clean document */
+@media print {
+  aside,
+  header,
+  footer,
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  main {
+    padding: 0 !important;
+  }
+}
