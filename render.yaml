@@ -1,0 +1,16 @@
+# Render Blueprint — defines the RZ API service as code.
+# Connected via Render dashboard: New + → Blueprint → select this repo.
+services:
+  - type: web
+    name: rz-forex-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run start -w server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.17.0
+    # Vendor sandbox secrets (ComplyAdvantage, CoP, Banking Circle, KYC) get
+    # added as env vars in the Render dashboard when each integration lands —
+    # never committed to the repo.
