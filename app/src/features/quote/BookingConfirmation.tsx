@@ -20,21 +20,20 @@ export function BookingConfirmation({ payment, onNewPayment }: { payment: Paymen
 
       <div className="mt-5 rounded-md bg-surface p-4">
         <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">
-          Fund this payment — transfer {formatMoney(payment.sellAmount)} to
+          Fund this payment — transfer {formatMoney(payment.sellAmount)} to your{' '}
+          {payment.funding.currency} virtual account
         </h3>
         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
           <div>
             <dt className="text-xs text-gray-400">Account name</dt>
             <dd className="font-bold text-brand">{payment.funding.accountName}</dd>
           </div>
-          <div>
-            <dt className="text-xs text-gray-400">BSB</dt>
-            <dd className="font-bold text-brand tabular-nums">{payment.funding.bsb}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-gray-400">Account number</dt>
-            <dd className="font-bold text-brand tabular-nums">{payment.funding.accountNumber}</dd>
-          </div>
+          {payment.funding.fields.map((f) => (
+            <div key={f.label}>
+              <dt className="text-xs text-gray-400">{f.label}</dt>
+              <dd className="font-bold text-brand tabular-nums">{f.value}</dd>
+            </div>
+          ))}
           <div>
             <dt className="text-xs text-gray-400">Payment reference (required)</dt>
             <dd className="font-bold text-accent tabular-nums">{payment.reference}</dd>

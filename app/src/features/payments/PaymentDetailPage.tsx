@@ -119,12 +119,11 @@ export function PaymentDetailPage() {
           </Card>
 
           {awaitingFunding && (
-            <Card title="Funding instructions">
+            <Card title={`Funding instructions (${payment.funding.currency} account)`}>
               <dl className="space-y-1.5 text-sm">
                 {[
                   ['Account name', payment.funding.accountName],
-                  ['BSB', payment.funding.bsb],
-                  ['Account number', payment.funding.accountNumber],
+                  ...payment.funding.fields.map((f): [string, string] => [f.label, f.value]),
                   ['Reference', payment.reference],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between">

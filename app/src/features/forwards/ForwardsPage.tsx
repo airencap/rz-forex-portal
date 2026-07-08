@@ -13,6 +13,7 @@ import {
   forwardUtilization,
   money,
   pairKey,
+  toMajor,
   toMinor,
   type ForwardContract,
 } from '@rz/domain'
@@ -41,7 +42,9 @@ function DrawdownForm({
   const services = useServices()
   const queryClient = useQueryClient()
   const remaining = forwardRemainingMinor(contract)
-  const [amount, setAmount] = useState(String(remaining / 100))
+  const [amount, setAmount] = useState(
+    String(toMajor(money(contract.pair.sell, remaining))),
+  )
 
   const mutation = useMutation({
     mutationFn: (sellMinor: number) => services.forwards.drawdown(contract.id, sellMinor),
@@ -56,7 +59,7 @@ function DrawdownForm({
     e.preventDefault()
     const parsed = Number(amount.replace(/,/g, ''))
     if (!Number.isFinite(parsed) || parsed <= 0) return
-    mutation.mutate(toMinor('AUD', parsed))
+    mutation.mutate(toMinor(contract.pair.sell, parsed))
   }
 
   return (
@@ -68,7 +71,7 @@ function DrawdownForm({
       <div className="flex items-end gap-3">
         <div className="flex-1">
           <TextField
-            label="Amount (AUD)"
+            label={`Amount (${contract.pair.sell})`}
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}

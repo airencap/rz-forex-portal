@@ -2,6 +2,7 @@ import {
   canTransition,
   HAPPY_PATH,
   isQuoteExpired,
+  MINOR_EXPONENT,
   money,
   toMinor,
   validateBeneficiary,
@@ -30,7 +31,7 @@ import type {
   Services,
 } from '@rz/domain'
 import * as db from './db'
-import { forwardPointsFor, midRate, rateDirection } from './marketData'
+import { convertMinor, forwardPointsFor, midRate, rateDirection } from './marketData'
 import { buildRevenueReport } from './revenue'
 import { buildStatement } from './statements'
 
@@ -47,34 +48,40 @@ function spreadBpsFor(clientId: string): number {
 }
 
 function priceQuote(req: QuoteRequest): Quote {
+  if (req.pair.sell === req.pair.buy) throw new Error('Sell and buy currencies must differ')
   const now = Date.now()
   const mid = midRate(req.pair)
   const spreadBps = spreadBpsFor(req.clientId)
-  // client sells AUD to buy foreign: client rate is mid less the spread
+  // client deals at mid less the spread, whatever the funding currency
   const spotClientRate = mid * (1 - spreadBps / 10_000)
   const valueDate =
     req.kind === 'forward' && req.valueDate ? req.valueDate : new Date(now).toISOString().slice(0, 10)
   const forwardPoints = req.kind === 'forward' ? forwardPointsFor(req.pair, spotClientRate, valueDate) : 0
   const clientRate = spotClientRate + forwardPoints
 
+  const sellExp = 10 ** MINOR_EXPONENT[req.pair.sell]
+  const buyExp = 10 ** MINOR_EXPONENT[req.pair.buy]
+  // fixed fee is A$10-equivalent, charged in the funding currency
+  const feeMinor = convertMinor('AUD', req.pair.sell, FIXED_FEE_AUD_MINOR)
+
   let sellMinor: number
   let buyMinor: number
   if (req.fixedSide === 'sell') {
     sellMinor = req.amountMinor
-    const convertedMajor = Math.max(0, sellMinor - FIXED_FEE_AUD_MINOR) / 100
+    const convertedMajor = Math.max(0, sellMinor - feeMinor) / sellExp
     buyMinor = toMinor(req.pair.buy, convertedMajor * clientRate)
   } else {
     buyMinor = req.amountMinor
-    const buyMajor = buyMinor / 10 ** (req.pair.buy === 'JPY' ? 0 : 2)
-    sellMinor = toMinor(req.pair.sell, buyMajor / clientRate) + FIXED_FEE_AUD_MINOR
+    const buyMajor = buyMinor / buyExp
+    sellMinor = toMinor(req.pair.sell, buyMajor / clientRate) + feeMinor
   }
 
   // spread cost in sell ccy: what the mid would have bought vs what client gets
-  const convertedMajor = Math.max(0, sellMinor - FIXED_FEE_AUD_MINOR) / 100
-  const midEquivalentMinor = toMinor(req.pair.buy, convertedMajor * (mid + forwardPoints))
+  const convertedMajor = Math.max(0, sellMinor - feeMinor) / sellExp
+  const midEquivalentBuyMajor = convertedMajor * (mid + forwardPoints)
   const spreadCostMinor = toMinor(
     req.pair.sell,
-    (midEquivalentMinor - buyMinor) / 10 ** (req.pair.buy === 'JPY' ? 0 : 2) / (mid + forwardPoints),
+    (midEquivalentBuyMajor - buyMinor / buyExp) / (mid + forwardPoints),
   )
 
   const quote: Quote = {
@@ -89,7 +96,7 @@ function priceQuote(req: QuoteRequest): Quote {
     midRate: mid,
     spreadBps,
     forwardPoints,
-    fee: money(req.pair.sell, FIXED_FEE_AUD_MINOR),
+    fee: money(req.pair.sell, feeMinor),
     spreadCost: money(req.pair.sell, spreadCostMinor),
     valueDate,
     createdAt: new Date(now).toISOString(),
@@ -153,7 +160,7 @@ const rates: RateService = {
       history: [{ state: 'booked', at: now }],
       valueDate: quote.valueDate,
       createdAt: now,
-      funding: db.fundingFor(quote.clientId),
+      funding: db.fundingFor(quote.clientId, quote.pair.sell),
     }
     applyApprovalRule(payment)
     db.payments.unshift(payment)
@@ -162,10 +169,16 @@ const rates: RateService = {
   },
 }
 
-/** Flags the payment for second approval when the client's rule catches it. */
+/**
+ * Flags the payment for second approval when the client's rule catches it.
+ * Thresholds are AUD-denominated; non-AUD funding compares at the AUD
+ * mid-market equivalent.
+ */
 function applyApprovalRule(payment: Payment): void {
   const rule = db.approvalRules[payment.clientId]
-  if (rule?.enabled && payment.sellAmount.minor > rule.thresholdMinor) {
+  if (!rule?.enabled) return
+  const audEquivalentMinor = convertMinor(payment.pair.sell, 'AUD', payment.sellAmount.minor)
+  if (audEquivalentMinor > rule.thresholdMinor) {
     payment.approval = { status: 'pending', thresholdMinor: rule.thresholdMinor }
   }
 }
@@ -311,11 +324,14 @@ const forwards: ForwardService = {
     if (contract.status !== 'open') throw new Error('Contract is not open')
     const remaining = contract.notional.minor - contract.drawnDownMinor
     if (sellAmountMinor <= 0) throw new Error('Drawdown amount must be positive')
+    const sellExp = 10 ** MINOR_EXPONENT[contract.pair.sell]
     if (sellAmountMinor > remaining)
-      throw new Error(`Drawdown exceeds remaining notional (${remaining / 100} AUD left)`)
+      throw new Error(
+        `Drawdown exceeds remaining notional (${remaining / sellExp} ${contract.pair.sell} left)`,
+      )
 
-    const feeMinor = toMinor('AUD', 10)
-    const convertedMajor = Math.max(0, sellAmountMinor - feeMinor) / 100
+    const feeMinor = convertMinor('AUD', contract.pair.sell, FIXED_FEE_AUD_MINOR)
+    const convertedMajor = Math.max(0, sellAmountMinor - feeMinor) / sellExp
     const buyMinor = toMinor(contract.pair.buy, convertedMajor * contract.lockedRate)
 
     const now = new Date().toISOString()
@@ -337,7 +353,7 @@ const forwards: ForwardService = {
       history: [{ state: 'booked', at: now }],
       valueDate: contract.valueDate,
       createdAt: now,
-      funding: db.fundingFor(contract.clientId),
+      funding: db.fundingFor(contract.clientId, contract.pair.sell),
     }
     db.payments.unshift(payment)
 

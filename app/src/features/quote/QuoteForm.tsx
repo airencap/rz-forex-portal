@@ -1,16 +1,19 @@
-import { useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/Button'
 import { SelectField, TextField } from '../../components/ui/Field'
 import {
-  CORRIDORS,
   CURRENCY_FLAGS,
   CURRENCY_NAMES,
+  formatMoney,
+  PAYOUT_CURRENCIES,
   toMinor,
   type Currency,
   type FixedSide,
   type QuoteKind,
   type QuoteRequest,
 } from '@rz/domain'
+import { useServices } from '../../services'
 
 function isoDatePlus(days: number): string {
   const d = new Date(Date.now() + days * 24 * 3600 * 1000)
@@ -26,12 +29,33 @@ export function QuoteForm({
   disabled: boolean
   onSubmit: (req: QuoteRequest) => void
 }) {
+  const services = useServices()
+  const [sellCurrency, setSellCurrency] = useState<Currency>('AUD')
   const [buyCurrency, setBuyCurrency] = useState<Currency>('NPR')
   const [fixedSide, setFixedSide] = useState<FixedSide>('sell')
   const [amount, setAmount] = useState('50000')
   const [kind, setKind] = useState<QuoteKind>('spot')
   const [valueDate, setValueDate] = useState(isoDatePlus(30))
   const [error, setError] = useState<string | null>(null)
+
+  // funding comes from the client's virtual accounts — any currency they hold
+  const { data: balances } = useQuery({
+    queryKey: ['balances', clientId],
+    queryFn: () => services.accounts.getBalances(clientId),
+  })
+  const fundingCurrencies = (balances ?? []).map((b) => b.currency)
+
+  useEffect(() => {
+    if (fundingCurrencies.length && !fundingCurrencies.includes(sellCurrency)) {
+      setSellCurrency(fundingCurrencies[0])
+    }
+  }, [fundingCurrencies, sellCurrency])
+
+  const buyOptions = PAYOUT_CURRENCIES.filter((c) => c !== sellCurrency)
+
+  useEffect(() => {
+    if (buyCurrency === sellCurrency) setBuyCurrency(buyOptions[0])
+  }, [sellCurrency, buyCurrency, buyOptions])
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -41,10 +65,10 @@ export function QuoteForm({
       return
     }
     setError(null)
-    const fixedCurrency: Currency = fixedSide === 'sell' ? 'AUD' : buyCurrency
+    const fixedCurrency: Currency = fixedSide === 'sell' ? sellCurrency : buyCurrency
     onSubmit({
       clientId,
-      pair: { sell: 'AUD', buy: buyCurrency },
+      pair: { sell: sellCurrency, buy: buyCurrency },
       fixedSide,
       amountMinor: toMinor(fixedCurrency, parsed),
       kind,
@@ -52,7 +76,7 @@ export function QuoteForm({
     })
   }
 
-  const fixedCurrency = fixedSide === 'sell' ? 'AUD' : buyCurrency
+  const fixedCurrency = fixedSide === 'sell' ? sellCurrency : buyCurrency
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,11 +99,24 @@ export function QuoteForm({
       </div>
 
       <SelectField
+        label="Pay from account"
+        value={sellCurrency}
+        onChange={(e) => setSellCurrency(e.target.value as Currency)}
+      >
+        {(balances ?? []).map((b) => (
+          <option key={b.currency} value={b.currency}>
+            {CURRENCY_FLAGS[b.currency]} {b.currency} — {formatMoney(b.available, { withCode: false })}{' '}
+            available
+          </option>
+        ))}
+      </SelectField>
+
+      <SelectField
         label="Beneficiary receives"
         value={buyCurrency}
         onChange={(e) => setBuyCurrency(e.target.value as Currency)}
       >
-        {CORRIDORS.map(({ buy }) => (
+        {buyOptions.map((buy) => (
           <option key={buy} value={buy}>
             {CURRENCY_FLAGS[buy]} {buy} — {CURRENCY_NAMES[buy]}
           </option>
@@ -97,7 +134,7 @@ export function QuoteForm({
             fixedSide === 'sell' ? 'border-accent bg-accent-soft text-brand' : 'border-gray-200 text-gray-500'
           }`}
         >
-          I want to send a fixed AUD amount
+          I want to send a fixed {sellCurrency} amount
         </button>
         <button
           type="button"

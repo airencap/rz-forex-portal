@@ -1,4 +1,4 @@
-import { money, type Currency, type Money } from '@rz/domain'
+import { MINOR_EXPONENT, money, type Currency, type Money } from '@rz/domain'
 import type { Statement, StatementEntry, StatementRange } from '@rz/domain'
 import * as db from './db'
 
@@ -19,45 +19,44 @@ interface RawMovement {
 function movementsFor(clientId: string, currency: Currency): RawMovement[] {
   const moves: RawMovement[] = []
 
-  if (currency === 'AUD') {
-    // funding debits: any payment that reached funds_pending was funded from the AUD account
-    for (const p of db.payments) {
-      if (p.clientId !== clientId || p.pair.sell !== 'AUD') continue
-      const funded = p.history.find((h) => h.state === 'funds_pending')
-      if (!funded) continue
+  // funding debits: any payment funded from this currency's virtual account
+  for (const p of db.payments) {
+    if (p.clientId !== clientId || p.pair.sell !== currency) continue
+    const funded = p.history.find((h) => h.state === 'funds_pending')
+    if (!funded) continue
+    moves.push({
+      date: funded.at,
+      description: `FX payment to ${p.beneficiaryName}`,
+      reference: p.reference,
+      minor: -(p.sellAmount.minor),
+    })
+    const returned = p.history.find((h) => h.state === 'returned')
+    if (returned) {
       moves.push({
-        date: funded.at,
-        description: `FX payment to ${p.beneficiaryName}`,
+        date: returned.at,
+        description: `Returned funds — ${p.beneficiaryName}`,
         reference: p.reference,
-        minor: -(p.sellAmount.minor),
+        minor: p.sellAmount.minor - p.fee.minor,
       })
-      const returned = p.history.find((h) => h.state === 'returned')
-      if (returned) {
-        moves.push({
-          date: returned.at,
-          description: `Returned funds — ${p.beneficiaryName}`,
-          reference: p.reference,
-          minor: p.sellAmount.minor - p.fee.minor,
-        })
-      }
     }
+  }
 
-    // monthly deposits sized to cover that month's debits (round 10k up)
-    const debitsByMonth = new Map<string, number>()
-    for (const m of moves) {
-      if (m.minor >= 0) continue
-      const month = m.date.slice(0, 7)
-      debitsByMonth.set(month, (debitsByMonth.get(month) ?? 0) - m.minor)
-    }
-    for (const [month, total] of debitsByMonth) {
-      const deposit = Math.ceil(total / 1_000_000) * 1_000_000 // nearest 10k AUD in minor units
-      moves.push({
-        date: `${month}-01T00:30:00Z`,
-        description: 'Client deposit received',
-        reference: `DEP-${month.replace('-', '')}`,
-        minor: deposit,
-      })
-    }
+  // monthly deposits sized to cover that month's debits (rounded up to 10k units)
+  const chunk = 10_000 * 10 ** MINOR_EXPONENT[currency]
+  const debitsByMonth = new Map<string, number>()
+  for (const m of moves) {
+    if (m.minor >= 0) continue
+    const month = m.date.slice(0, 7)
+    debitsByMonth.set(month, (debitsByMonth.get(month) ?? 0) - m.minor)
+  }
+  for (const [month, total] of debitsByMonth) {
+    const deposit = Math.ceil(total / chunk) * chunk
+    moves.push({
+      date: `${month}-01T00:30:00Z`,
+      description: 'Client deposit received',
+      reference: `DEP-${month.replace('-', '')}`,
+      minor: deposit,
+    })
   }
 
   return moves.sort((a, b) => a.date.localeCompare(b.date))

@@ -57,11 +57,16 @@ export interface StateChange {
   at: string
 }
 
+/**
+ * Virtual-account details the client transfers into to fund a payment.
+ * Field shapes differ per funding currency (BSB for AUD, ACH routing for
+ * USD, IBAN for EUR, …), so details are label/value pairs.
+ */
 export interface FundingInstructions {
   accountName: string
-  bsb: string
-  accountNumber: string
   reference: string
+  currency: string
+  fields: Array<{ label: string; value: string }>
 }
 
 /**

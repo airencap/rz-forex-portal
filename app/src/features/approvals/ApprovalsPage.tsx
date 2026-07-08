@@ -85,8 +85,9 @@ function RuleSettings({ clientId }: { clientId: string }) {
         <p className="mt-2 text-sm text-red-600">{(saveMutation.error as Error).message}</p>
       )}
       <p className="mt-3 text-xs text-gray-400">
-        Applies at booking time. Flagged payments hold in "Booked" and cannot be funded until a
-        second user approves them here.
+        Applies at booking time; non-AUD-funded payments compare at their AUD mid-market
+        equivalent. Flagged payments hold in "Booked" and cannot be funded until a second user
+        approves them here.
       </p>
     </Card>
   )

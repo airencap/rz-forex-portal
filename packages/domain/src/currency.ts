@@ -41,7 +41,14 @@ export function pairKey(pair: CurrencyPair): string {
   return `${pair.sell}/${pair.buy}`
 }
 
-/** Supported corridors (AUD-out only in the prototype). */
+/** Currencies we can pay out to beneficiaries. */
+export const PAYOUT_CURRENCIES: Currency[] = ['NPR', 'JPY', 'USD', 'LKR', 'EUR', 'GBP', 'AUD']
+
+/**
+ * Historic AUD-out corridors — still used for client "frequent pairs" on the
+ * dashboard. Funding is account-agnostic: any virtual-account currency can
+ * fund a payment to any payout currency.
+ */
 export const CORRIDORS: CurrencyPair[] = (['NPR', 'JPY', 'USD', 'LKR', 'EUR', 'GBP'] as const).map(
   (buy) => ({ sell: 'AUD', buy }),
 )

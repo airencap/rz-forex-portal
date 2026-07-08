@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { StatusChip } from '../../components/ui/StatusChip'
 import {
-  CORRIDORS,
+  PAYOUT_CURRENCIES,
   formatMoney,
   formatRate,
   pairKey,
@@ -123,7 +123,7 @@ export function PaymentsListPage() {
                 className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
               >
                 <option value="all">All currencies</option>
-                {CORRIDORS.map(({ buy }) => (
+                {PAYOUT_CURRENCIES.map((buy) => (
                   <option key={buy} value={buy}>
                     {buy}
                   </option>

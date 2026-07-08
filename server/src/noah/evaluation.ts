@@ -1,4 +1,4 @@
-import { CORRIDORS } from '@rz/domain'
+import { PAYOUT_CURRENCIES } from '@rz/domain'
 import { noah, noahConfigured } from './client'
 
 /**
@@ -67,10 +67,10 @@ async function buildEvaluation(): Promise<NoahEvaluation> {
   }
 
   // our portal's payout currencies vs Noah's sell coverage
-  const coverage: RailCoverageRow[] = CORRIDORS.map(({ buy }) => ({
-    currency: buy,
-    supported: countriesByCurrency.has(buy),
-    countries: countriesByCurrency.get(buy) ?? [],
+  const coverage: RailCoverageRow[] = PAYOUT_CURRENCIES.map((currency) => ({
+    currency,
+    supported: countriesByCurrency.has(currency),
+    countries: countriesByCurrency.get(currency) ?? [],
   }))
 
   const supported = coverage.filter((c) => c.supported).map((c) => c.currency)

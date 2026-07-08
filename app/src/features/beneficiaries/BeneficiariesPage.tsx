@@ -6,7 +6,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import {
   BANK_FIELD_LABELS,
-  CORRIDORS,
+  PAYOUT_CURRENCIES,
   CURRENCY_FLAGS,
   type Beneficiary,
   type BeneficiaryDraft,
@@ -76,7 +76,7 @@ export function BeneficiariesPage() {
             onChange={(e) => setCreateCurrency(e.target.value as Currency)}
             className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm"
           >
-            {CORRIDORS.map(({ buy }) => (
+            {PAYOUT_CURRENCIES.map((buy) => (
               <option key={buy} value={buy}>
                 {buy}
               </option>
@@ -119,7 +119,7 @@ export function BeneficiariesPage() {
 
       <Card>
         <div className="mb-4 flex gap-1.5" role="radiogroup" aria-label="Filter by currency">
-          {(['all', ...CORRIDORS.map((c) => c.buy)] as const).map((c) => (
+          {(['all', ...PAYOUT_CURRENCIES] as const).map((c) => (
             <button
               key={c}
               type="button"

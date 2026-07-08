@@ -38,7 +38,7 @@ export function QuoteCard({ quote, onRequote }: { quote: Quote; onRequote: () =>
             {quote.kind === 'forward' ? `Forward quote · value date ${quote.valueDate}` : 'Spot quote'}
           </p>
           <p className="mt-1 text-2xl font-bold text-brand tabular-nums">
-            1 AUD = {formatRate(quote.clientRate)} {quote.pair.buy}
+            1 {quote.pair.sell} = {formatRate(quote.clientRate)} {quote.pair.buy}
           </p>
           <p className="text-xs text-gray-500">
             Mid-market {pairKey(quote.pair)}: {formatRate(quote.midRate)} · your margin {quote.spreadBps} bps

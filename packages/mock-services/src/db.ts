@@ -2,7 +2,9 @@ import {
   toMinor,
   money,
   type Beneficiary,
+  type Currency,
   type ForwardContract,
+  type FundingInstructions,
   type Payment,
   type PaymentState,
   type Quote,
@@ -164,7 +166,11 @@ export function nextId(prefix: string): string {
 interface SeedPayment {
   clientId: string
   beneficiaryId: string
+  /** Funding (sell-side) currency — defaults to AUD. */
+  sellCurrency?: Currency
   sellMajor: number
+  /** Fee in sell-currency major units — defaults to 10 (A$10-equivalent). */
+  feeMajor?: number
   clientRate: number
   midRate: number
   spreadBps: number
@@ -216,9 +222,10 @@ function historyFor(state: PaymentState, createdAt: string): StateChange[] {
 function buildPayment(seed: SeedPayment, n: number): Payment {
   const bene = beneficiaries.find((b) => b.id === seed.beneficiaryId)
   if (!bene) throw new Error(`unknown beneficiary ${seed.beneficiaryId}`)
-  const sellMinor = toMinor('AUD', seed.sellMajor)
-  const feeMinor = toMinor('AUD', 10)
-  const convertedMajor = (sellMinor - feeMinor) / 100
+  const sell = seed.sellCurrency ?? 'AUD'
+  const sellMinor = toMinor(sell, seed.sellMajor)
+  const feeMinor = toMinor(sell, seed.feeMajor ?? 10)
+  const convertedMajor = seed.sellMajor - (seed.feeMajor ?? 10)
   const buyMinor = toMinor(bene.currency, convertedMajor * seed.clientRate)
   return {
     id: `pm-seed-${n}`,
@@ -226,34 +233,64 @@ function buildPayment(seed: SeedPayment, n: number): Payment {
     clientId: seed.clientId,
     beneficiaryId: bene.id,
     beneficiaryName: bene.name,
-    pair: { sell: 'AUD', buy: bene.currency },
+    pair: { sell, buy: bene.currency },
     kind: seed.kind ?? 'spot',
-    sellAmount: money('AUD', sellMinor),
+    sellAmount: money(sell, sellMinor),
     buyAmount: money(bene.currency, buyMinor),
     clientRate: seed.clientRate,
     midRate: seed.midRate,
     spreadBps: seed.spreadBps,
-    fee: money('AUD', feeMinor),
+    fee: money(sell, feeMinor),
     state: seed.state,
     history: historyFor(seed.state, seed.createdAt),
     valueDate: seed.valueDate ?? seed.createdAt.slice(0, 10),
     createdAt: seed.createdAt,
-    funding: fundingFor(seed.clientId),
+    funding: fundingFor(seed.clientId, sell),
   }
 }
 
-export function fundingFor(clientId: string): {
-  accountName: string
-  bsb: string
-  accountNumber: string
-  reference: string
-} {
+/**
+ * Virtual-account funding details per client and funding currency — the
+ * client transfers into the matching currency account to fund a payment.
+ */
+export function fundingFor(clientId: string, currency: Currency): FundingInstructions {
   const suffix = clientId === 'cl-meridian' ? '7301' : clientId === 'cl-himalaya' ? '7302' : '7303'
+  const reference = clientId.replace('cl-', 'RZ-').toUpperCase()
+  const fieldsByCurrency: Record<Currency, Array<{ label: string; value: string }>> = {
+    AUD: [
+      { label: 'BSB', value: '062-000' },
+      { label: 'Account number', value: `1140 ${suffix}` },
+    ],
+    USD: [
+      { label: 'ACH routing number', value: '026009593' },
+      { label: 'Account number', value: `4890 ${suffix}` },
+    ],
+    EUR: [
+      { label: 'IBAN', value: `DE44 5001 0517 5407 ${suffix} 89` },
+      { label: 'BIC', value: 'AWFIDEFFXXX' },
+    ],
+    GBP: [
+      { label: 'Sort code', value: '20-00-00' },
+      { label: 'Account number', value: `6612 ${suffix}` },
+    ],
+    JPY: [
+      { label: 'Bank / branch (zengin)', value: '0005-231' },
+      { label: 'Account number', value: `9${suffix}21` },
+    ],
+    NPR: [
+      { label: 'Bank', value: 'Nabil Bank, Kathmandu' },
+      { label: 'Account number', value: `01700100${suffix}55` },
+    ],
+    LKR: [
+      { label: 'Bank', value: 'Commercial Bank of Ceylon' },
+      { label: 'Account number', value: `800${suffix}890` },
+    ],
+  }
   return {
     accountName: 'AW Fintech Client Segregated A/C',
-    bsb: '062-000',
-    accountNumber: `1140 ${suffix}`,
-    reference: clientId.replace('cl-', 'RZ-').toUpperCase(),
+    reference,
+    currency,
+    fields: fieldsByCurrency[currency],
   }
 }
 
@@ -273,6 +310,8 @@ const seedPayments: SeedPayment[] = [
   { clientId: 'cl-meridian', beneficiaryId: 'bn-gorkha', sellMajor: 168_300, clientRate: 88.95, midRate: 89.4, spreadBps: 50, state: 'settled', createdAt: '2026-06-26T01:45:00Z' },
   { clientId: 'cl-meridian', beneficiaryId: 'bn-annapurna', sellMajor: 88_000, clientRate: 88.97, midRate: 89.42, spreadBps: 50, state: 'settled', createdAt: '2026-06-29T00:30:00Z' },
   { clientId: 'cl-meridian', beneficiaryId: 'bn-osaka', sellMajor: 31_600, clientRate: 97.02, midRate: 97.51, spreadBps: 50, state: 'failed', createdAt: '2026-06-29T05:50:00Z' },
+  // USD-funded payment to a JPY supplier — funding is account-agnostic
+  { clientId: 'cl-meridian', beneficiaryId: 'bn-osaka', sellCurrency: 'USD', sellMajor: 12_000, feeMajor: 6.6, clientRate: 147.62, midRate: 148.36, spreadBps: 50, state: 'settled', createdAt: '2026-06-20T02:15:00Z' },
   // early July — live activity for the demo
   { clientId: 'cl-meridian', beneficiaryId: 'bn-pacifictimber', sellMajor: 27_900, clientRate: 0.6579, midRate: 0.6612, spreadBps: 50, state: 'in_flight', createdAt: '2026-07-03T02:05:00Z' },
   { clientId: 'cl-meridian', beneficiaryId: 'bn-gorkha', sellMajor: 64_250, clientRate: 88.98, midRate: 89.43, spreadBps: 50, state: 'funds_pending', createdAt: '2026-07-05T23:10:00Z' },
