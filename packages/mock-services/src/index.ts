@@ -222,6 +222,28 @@ const payments: PaymentService = {
     if (!p) throw new Error('Payment not found')
     return delay(transition(p, 'cancelled'))
   },
+
+  async applyRailStatus(id, status) {
+    const p = db.payments.find((x) => x.id === id)
+    if (!p) throw new Error('Payment not found')
+    const walkTo = (target: PaymentState) => {
+      let idx = HAPPY_PATH.indexOf(p.state)
+      const targetIdx = HAPPY_PATH.indexOf(target)
+      while (idx >= 0 && idx < targetIdx) {
+        transition(p, HAPPY_PATH[idx + 1])
+        idx += 1
+      }
+    }
+    if (HAPPY_PATH.includes(p.state)) {
+      if (status === 'Pending') walkTo('in_flight')
+      else if (status === 'Settled') walkTo('settled')
+      else if (status === 'Failed' && p.state !== 'settled') {
+        walkTo('funds_pending')
+        transition(p, 'failed')
+      }
+    }
+    return delay(p)
+  },
 }
 
 const beneficiaryService: BeneficiaryService = {

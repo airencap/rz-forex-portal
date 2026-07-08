@@ -41,12 +41,21 @@ export interface PaymentFilter {
   states?: PaymentState[]
 }
 
+/** Rail-reported transaction status (e.g. Noah webhook Transaction events). */
+export type RailStatus = 'Pending' | 'Settled' | 'Failed'
+
 export interface PaymentService {
   list(filter: PaymentFilter): Promise<Payment[]>
   get(id: string): Promise<Payment>
   /** Mock-only demo advancer: moves a payment to the next happy-path state. */
   advance(id: string): Promise<Payment>
   cancel(id: string): Promise<Payment>
+  /**
+   * Applies a rail-reported status to the payment, walking legal state-machine
+   * transitions: Pending ⇒ in_flight, Settled ⇒ settled, Failed ⇒ failed.
+   * Idempotent; no-op on terminal payments.
+   */
+  applyRailStatus(id: string, status: RailStatus): Promise<Payment>
 }
 
 export interface NewBeneficiary {

@@ -5,6 +5,7 @@ import {
   type CurrencyPair,
   type QuoteRequest,
   type RailExecution,
+  type RailStatus,
 } from '@rz/domain'
 import { createMockServices } from '@rz/mock-services'
 import Fastify from 'fastify'
@@ -12,6 +13,13 @@ import { fileURLToPath } from 'node:url'
 import { noah, noahConfigured, type PricesQuery } from './noah/client'
 import { noahEvaluation } from './noah/evaluation'
 import { executePayout, getTransaction, preparePayout, type PreparePayoutRequest } from './noah/payouts'
+import {
+  eventsForTransaction,
+  recentEvents,
+  recordEvent,
+  verifyWebhookSignature,
+  type NoahWebhookEvent,
+} from './noah/webhooks'
 
 // server/.env (gitignored) holds vendor sandbox secrets for local dev;
 // on Render they come from the dashboard environment instead
@@ -69,6 +77,47 @@ app.get('/api/noah/channels', () => noah.sellChannels())
 app.get('/api/noah/countries', () => noah.sellCountries())
 app.get('/api/rails/noah/evaluation', () => noahEvaluation())
 
+// --- Noah webhooks: signed deliveries drive the payment state machine ---
+await app.register(async (scope) => {
+  // signature verifies over the RAW body, so this scope parses to string
+  scope.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) =>
+    done(null, body),
+  )
+  scope.post('/api/webhooks/noah', async (req, reply) => {
+    const rawBody = req.body as string
+    const signature = req.headers['webhook-signature']
+    const verified =
+      typeof signature === 'string' && verifyWebhookSignature(rawBody, signature)
+    if (!verified && process.env.NOAH_WEBHOOK_ALLOW_UNSIGNED !== 'true') {
+      req.log.warn('noah webhook rejected: bad or missing signature')
+      return reply.status(401).send({ error: 'invalid signature' })
+    }
+    let envelope: Parameters<typeof recordEvent>[0]
+    try {
+      envelope = JSON.parse(rawBody) as Parameters<typeof recordEvent>[0]
+    } catch {
+      return reply.status(400).send({ error: 'invalid JSON' })
+    }
+    const event = recordEvent(envelope, verified)
+    await syncPaymentFromRailEvent(event)
+    return reply.status(200).send({ received: true })
+  })
+})
+
+/** Server-mode book: apply Transaction events to the matching railed payment. */
+async function syncPaymentFromRailEvent(event: NoahWebhookEvent): Promise<void> {
+  if (event.eventType !== 'Transaction' || !event.transactionId || !event.status) return
+  const all = await services.admin.listAllPayments()
+  const match = all.find((p) => p.rail?.transactionId === event.transactionId)
+  if (match) await services.payments.applyRailStatus(match.id, event.status)
+}
+
+app.get<{ Querystring: { transactionId?: string } }>('/api/noah/events', (req) =>
+  req.query.transactionId
+    ? eventsForTransaction(req.query.transactionId)
+    : recentEvents(),
+)
+
 // Noah payout rail: prepare (locked quote + recipient form) → execute (sell)
 app.post<{ Body: PreparePayoutRequest }>('/api/noah/payouts/prepare', (req) =>
   preparePayout(req.body),
@@ -107,6 +156,10 @@ app.post<{ Params: { id: string } }>('/api/payments/:id/advance', (req) =>
 )
 app.post<{ Params: { id: string } }>('/api/payments/:id/cancel', (req) =>
   services.payments.cancel(req.params.id),
+)
+app.post<{ Params: { id: string }; Body: { status: RailStatus } }>(
+  '/api/payments/:id/rail-status',
+  (req) => services.payments.applyRailStatus(req.params.id, req.body.status),
 )
 
 // --- beneficiaries ---

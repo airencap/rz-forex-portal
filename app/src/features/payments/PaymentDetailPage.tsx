@@ -1,21 +1,77 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { formatMoney, formatRate, HAPPY_PATH, pairKey, type RailExecution } from '@rz/domain'
+import {
+  formatMoney,
+  formatRate,
+  HAPPY_PATH,
+  pairKey,
+  type Payment,
+  type RailStatus,
+} from '@rz/domain'
 import { railsRequest } from '../../lib/railsApi'
 import { useServices } from '../../services'
 import { PaymentTimeline } from './PaymentTimeline'
 
-function RailStatusCard({ rail }: { rail: RailExecution }) {
-  const statusQuery = useMutation({
-    mutationFn: () =>
-      railsRequest<{ Status?: string; [k: string]: unknown }>(
-        `/api/noah/transactions/${rail.transactionId}`,
-      ),
+interface RailEvent {
+  receivedAt: string
+  verified: boolean
+  eventType: string
+  occurred?: string
+  status?: RailStatus
+}
+
+const TERMINAL = new Set(['settled', 'failed', 'cancelled', 'returned'])
+
+/**
+ * Webhook-driven rail card: polls the RZ API's Noah event store and applies
+ * rail-reported status to the payment state machine — the tracker follows
+ * the rail without manual clicks. Direct status lookup stays as a fallback.
+ */
+function RailStatusCard({ payment }: { payment: Payment }) {
+  const services = useServices()
+  const queryClient = useQueryClient()
+  const rail = payment.rail!
+  const terminal = TERMINAL.has(payment.state)
+
+  const eventsQuery = useQuery({
+    queryKey: ['noah-events', rail.transactionId],
+    queryFn: () => railsRequest<RailEvent[]>(`/api/noah/events?transactionId=${rail.transactionId}`),
+    refetchInterval: terminal ? false : 10_000,
+    retry: 1,
   })
+
+  const events = eventsQuery.data ?? []
+  const latestStatus = [...events].reverse().find((e) => e.status)?.status
+
+  const syncMutation = useMutation({
+    mutationFn: (status: RailStatus) => services.payments.applyRailStatus(payment.id, status),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['payment', payment.id], updated)
+      queryClient.invalidateQueries({ queryKey: ['payments', updated.clientId] })
+    },
+  })
+
+  // rail says something newer than our state machine shows → apply it
+  useEffect(() => {
+    if (!latestStatus || terminal || syncMutation.isPending) return
+    const needsSync =
+      (latestStatus === 'Settled' && payment.state !== 'settled') ||
+      (latestStatus === 'Failed' && payment.state !== 'failed') ||
+      (latestStatus === 'Pending' && payment.state === 'booked')
+    if (needsSync) syncMutation.mutate(latestStatus)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestStatus, payment.state])
+
+  const directCheck = useMutation({
+    mutationFn: () =>
+      railsRequest<{ Status?: string }>(`/api/noah/transactions/${rail.transactionId}`),
+  })
+
   return (
     <Card title="Rail execution (Noah sandbox)">
       <dl className="space-y-1.5 text-sm">
@@ -29,23 +85,56 @@ function RailStatusCard({ rail }: { rail: RailExecution }) {
             <dd className="tabular-nums">{rail.channelFee} USD</dd>
           </div>
         )}
-        {statusQuery.data && (
+        {directCheck.data && (
           <div className="flex justify-between">
-            <dt className="text-gray-500">Rail status</dt>
-            <dd className="font-bold text-brand">{String(statusQuery.data.Status ?? 'unknown')}</dd>
+            <dt className="text-gray-500">Direct lookup</dt>
+            <dd className="font-bold text-brand">{String(directCheck.data.Status ?? 'unknown')}</dd>
           </div>
         )}
       </dl>
+
+      <div className="mt-3 border-t border-gray-100 pt-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+          Rail events (webhooks{terminal ? '' : ' · live'})
+        </p>
+        {events.length === 0 ? (
+          <p className="mt-1 text-xs text-gray-400">
+            No events received yet — Noah pushes Transaction events as the payout progresses.
+          </p>
+        ) : (
+          <ul className="mt-1 space-y-1">
+            {events.map((e, i) => (
+              <li key={i} className="flex justify-between text-xs">
+                <span className="text-gray-600">
+                  {e.eventType}
+                  {e.status && <strong className="ml-1 text-brand">{e.status}</strong>}
+                  {!e.verified && (
+                    <span className="ml-1.5 rounded bg-amber-50 px-1 text-[10px] font-bold uppercase text-amber-700">
+                      unsigned
+                    </span>
+                  )}
+                </span>
+                <span className="tabular-nums text-gray-400">
+                  {new Date(e.occurred ?? e.receivedAt).toLocaleTimeString('en-AU')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <Button
         variant="secondary"
         className="mt-3 !px-2 !py-1 !text-xs"
-        disabled={statusQuery.isPending}
-        onClick={() => statusQuery.mutate()}
+        disabled={directCheck.isPending}
+        onClick={() => directCheck.mutate()}
       >
-        {statusQuery.isPending ? 'Checking…' : 'Check rail status'}
+        {directCheck.isPending ? 'Checking…' : 'Check rail directly'}
       </Button>
-      {statusQuery.isError && (
-        <p className="mt-2 text-xs text-red-600">{(statusQuery.error as Error).message}</p>
+      {(eventsQuery.isError || directCheck.isError) && (
+        <p className="mt-2 text-xs text-red-600">
+          {((eventsQuery.error ?? directCheck.error) as Error).message}
+        </p>
       )}
     </Card>
   )
@@ -181,7 +270,7 @@ export function PaymentDetailPage() {
             </Card>
           )}
 
-          {payment.rail && <RailStatusCard rail={payment.rail} />}
+          {payment.rail && <RailStatusCard payment={payment} />}
 
           <Card title="Demo controls">
             <p className="mb-3 text-xs text-gray-400">

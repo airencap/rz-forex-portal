@@ -49,6 +49,8 @@ export function createHttpServices(baseUrl: string): Services {
       get: (id) => get(`/api/payments/${id}`),
       advance: (id) => request(base, `/api/payments/${id}/advance`, post({})),
       cancel: (id) => request(base, `/api/payments/${id}/cancel`, post({})),
+      applyRailStatus: (id, status) =>
+        request(base, `/api/payments/${id}/rail-status`, post({ status })),
     },
 
     beneficiaries: {
