@@ -4,9 +4,52 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SkeletonRows } from '../../components/ui/Skeleton'
 import { StatusChip } from '../../components/ui/StatusChip'
-import { formatMoney, formatRate, HAPPY_PATH, pairKey } from '@rz/domain'
+import { formatMoney, formatRate, HAPPY_PATH, pairKey, type RailExecution } from '@rz/domain'
+import { railsRequest } from '../../lib/railsApi'
 import { useServices } from '../../services'
 import { PaymentTimeline } from './PaymentTimeline'
+
+function RailStatusCard({ rail }: { rail: RailExecution }) {
+  const statusQuery = useMutation({
+    mutationFn: () =>
+      railsRequest<{ Status?: string; [k: string]: unknown }>(
+        `/api/noah/transactions/${rail.transactionId}`,
+      ),
+  })
+  return (
+    <Card title="Rail execution (Noah sandbox)">
+      <dl className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-gray-500">Transaction ID</dt>
+          <dd className="font-mono text-xs text-brand">{rail.transactionId}</dd>
+        </div>
+        {rail.channelFee && (
+          <div className="flex justify-between">
+            <dt className="text-gray-500">Channel fee (all-in)</dt>
+            <dd className="tabular-nums">{rail.channelFee} USD</dd>
+          </div>
+        )}
+        {statusQuery.data && (
+          <div className="flex justify-between">
+            <dt className="text-gray-500">Rail status</dt>
+            <dd className="font-bold text-brand">{String(statusQuery.data.Status ?? 'unknown')}</dd>
+          </div>
+        )}
+      </dl>
+      <Button
+        variant="secondary"
+        className="mt-3 !px-2 !py-1 !text-xs"
+        disabled={statusQuery.isPending}
+        onClick={() => statusQuery.mutate()}
+      >
+        {statusQuery.isPending ? 'Checking…' : 'Check rail status'}
+      </Button>
+      {statusQuery.isError && (
+        <p className="mt-2 text-xs text-red-600">{(statusQuery.error as Error).message}</p>
+      )}
+    </Card>
+  )
+}
 
 export function PaymentDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -137,6 +180,8 @@ export function PaymentDetailPage() {
               </p>
             </Card>
           )}
+
+          {payment.rail && <RailStatusCard rail={payment.rail} />}
 
           <Card title="Demo controls">
             <p className="mb-3 text-xs text-gray-400">

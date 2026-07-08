@@ -37,8 +37,8 @@ export function createHttpServices(baseUrl: string): Services {
       getIndicativeRates: (pairs, clientId) =>
         get(`/api/rates/indicative?clientId=${clientId}&pairs=${pairs.map(pairKey).join(',')}`),
       getQuote: (req) => request(base, '/api/quotes', post(req)),
-      bookQuote: (quoteId, beneficiaryId) =>
-        request(base, `/api/quotes/${quoteId}/book`, post({ beneficiaryId })),
+      bookQuote: (quoteId, beneficiaryId, rail) =>
+        request(base, `/api/quotes/${quoteId}/book`, post({ beneficiaryId, rail })),
     },
 
     payments: {

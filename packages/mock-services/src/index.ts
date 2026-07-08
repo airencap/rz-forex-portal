@@ -129,7 +129,7 @@ const rates: RateService = {
     return delay(priceQuote(request))
   },
 
-  async bookQuote(quoteId, beneficiaryId) {
+  async bookQuote(quoteId, beneficiaryId, rail) {
     const quote = db.quotes.get(quoteId)
     if (!quote) throw new Error('Quote not found')
     if (quote.kind === 'forward')
@@ -145,6 +145,7 @@ const rates: RateService = {
     const payment: Payment = {
       id: db.nextId('pm'),
       reference: db.nextReference(),
+      rail,
       clientId: quote.clientId,
       beneficiaryId: bene.id,
       beneficiaryName: bene.name,

@@ -8,6 +8,7 @@ import type {
   PaymentState,
   Quote,
   QuoteRequest,
+  RailExecution,
 } from './index'
 
 /**
@@ -28,8 +29,11 @@ export interface IndicativeRate {
 export interface RateService {
   getIndicativeRates(pairs: CurrencyPair[], clientId: string): Promise<IndicativeRate[]>
   getQuote(request: QuoteRequest): Promise<Quote>
-  /** Books a live quote. Rejects if the quote has expired — expired quotes must be re-requested. */
-  bookQuote(quoteId: string, beneficiaryId: string): Promise<Payment>
+  /**
+   * Books a live quote. Rejects if the quote has expired — expired quotes
+   * must be re-requested. `rail` records an external payout-rail execution.
+   */
+  bookQuote(quoteId: string, beneficiaryId: string, rail?: RailExecution): Promise<Payment>
 }
 
 export interface PaymentFilter {

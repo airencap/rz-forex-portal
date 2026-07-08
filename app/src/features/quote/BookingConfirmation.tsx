@@ -18,6 +18,13 @@ export function BookingConfirmation({ payment, onNewPayment }: { payment: Paymen
         </div>
       </div>
 
+      {payment.rail && (
+        <div className="mt-4 rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-800">
+          Payout executed via <strong>Noah rail</strong> (sandbox) — transaction{' '}
+          <span className="font-mono text-xs">{payment.rail.transactionId}</span>
+        </div>
+      )}
+
       <div className="mt-5 rounded-md bg-surface p-4">
         <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">
           Fund this payment — transfer {formatMoney(payment.sellAmount)} to your{' '}

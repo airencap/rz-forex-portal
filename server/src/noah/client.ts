@@ -19,7 +19,7 @@ class NoahError extends Error {
   }
 }
 
-async function noahRequest<T>(path: string, init?: RequestInit): Promise<T> {
+export async function noahRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const key = process.env.NOAH_API_KEY
   if (!key) throw new NoahError('NOAH_API_KEY is not configured', 503)
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -33,9 +33,19 @@ async function noahRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const text = await res.text()
   const body = text ? (JSON.parse(text) as unknown) : null
   if (!res.ok) {
+    // Noah errors: { Type, Detail, RequestExtension: { Body: [{Field, Description}] } }
+    const e = body as {
+      Detail?: string
+      message?: string
+      error?: string
+      RequestExtension?: { Body?: Array<{ Field?: string; Description?: string }> }
+    } | null
+    const fieldErrors = (e?.RequestExtension?.Body ?? [])
+      .map((f) => f.Description ?? f.Field)
+      .filter(Boolean)
+      .join('; ')
     const message =
-      (body as { message?: string; error?: string } | null)?.message ??
-      (body as { error?: string } | null)?.error ??
+      [e?.Detail ?? e?.message ?? e?.error, fieldErrors].filter(Boolean).join(' — ') ||
       `Noah API error (${res.status})`
     throw new NoahError(message, res.status)
   }
@@ -86,6 +96,10 @@ export const noah = {
 
   sellCountries(): Promise<unknown> {
     return noahRequest('/channels/sell/countries')
+  },
+
+  transaction(id: string): Promise<unknown> {
+    return noahRequest(`/transactions/${encodeURIComponent(id)}`)
   },
 
   simulateFiatDeposit(body: {

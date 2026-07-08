@@ -80,10 +80,19 @@ export interface PaymentApproval {
   decidedAt?: string
 }
 
+/** Present when the payout leg was executed on an external rail. */
+export interface RailExecution {
+  provider: 'noah'
+  transactionId: string
+  /** Rail's all-in channel fee at execution, in payout currency. */
+  channelFee?: string
+}
+
 export interface Payment {
   id: string
   /** Human booking reference, e.g. RZ-2026-000141 */
   reference: string
+  rail?: RailExecution
   clientId: string
   beneficiaryId: string
   beneficiaryName: string

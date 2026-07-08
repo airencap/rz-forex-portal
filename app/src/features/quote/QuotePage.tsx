@@ -2,12 +2,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { isQuoteExpired, type ForwardContract, type Payment, type QuoteRequest } from '@rz/domain'
+import {
+  isQuoteExpired,
+  toMajor,
+  type ForwardContract,
+  type Payment,
+  type QuoteRequest,
+} from '@rz/domain'
+import { railsRequest } from '../../lib/railsApi'
 import { useServices } from '../../services'
 import { useSession } from '../../store/session'
 import { BeneficiaryPicker } from './BeneficiaryPicker'
 import { BookingConfirmation } from './BookingConfirmation'
 import { ForwardConfirmation } from './ForwardConfirmation'
+import { NoahRailOption, type NoahPrepared } from './NoahRailOption'
 import { QuoteCard } from './QuoteCard'
 import { QuoteForm } from './QuoteForm'
 
@@ -21,6 +29,8 @@ export function QuotePage() {
   const [lastRequest, setLastRequest] = useState<QuoteRequest | null>(null)
   const [beneficiaryId, setBeneficiaryId] = useState<string | null>(null)
   const [booked, setBooked] = useState<BookingResult | null>(null)
+  const [useNoahRail, setUseNoahRail] = useState(false)
+  const [noahPrepared, setNoahPrepared] = useState<NoahPrepared | null>(null)
 
   const quoteMutation = useMutation({
     mutationFn: (req: QuoteRequest) => services.rates.getQuote(req),
@@ -40,7 +50,29 @@ export function QuotePage() {
         const contract = await services.forwards.book(quoteId, beneficiaryId)
         return { kind: 'forward', contract }
       }
-      const payment = await services.rates.bookQuote(quoteId, beneficiaryId)
+      // Noah-routed payouts execute the sandbox sell first; a rail failure
+      // aborts the booking so the book of record never lies
+      let rail
+      if (useNoahRail) {
+        if (!noahPrepared || !noahPrepared.cryptoAuthorizedAmount)
+          throw new Error('Noah rail is enabled but no prepared quote is ready')
+        const quote = quoteMutation.data!
+        const result = await railsRequest<{ TransactionID?: string }>('/api/noah/payouts/execute', {
+          method: 'POST',
+          body: JSON.stringify({
+            formSessionId: noahPrepared.formSessionId,
+            cryptoAuthorizedAmount: noahPrepared.cryptoAuthorizedAmount,
+            fiatAmount: toMajor(quote.buyAmount).toFixed(2),
+            externalId: quoteId,
+          }),
+        })
+        rail = {
+          provider: 'noah' as const,
+          transactionId: result.TransactionID ?? 'unknown',
+          channelFee: noahPrepared.totalFeeUsd,
+        }
+      }
+      const payment = await services.rates.bookQuote(quoteId, beneficiaryId, rail)
       return { kind: 'payment', payment }
     },
     onSuccess: (result) => {
@@ -77,7 +109,8 @@ export function QuotePage() {
     return () => clearInterval(t)
   }, [quote])
 
-  const canBook = !!quote && !!beneficiaryId && !expired && !bookMutation.isPending
+  const noahReady = !useNoahRail || !!noahPrepared?.cryptoAuthorizedAmount
+  const canBook = !!quote && !!beneficiaryId && !expired && !bookMutation.isPending && noahReady
 
   if (booked) {
     return (
@@ -120,6 +153,15 @@ export function QuotePage() {
                   currency={quote.pair.buy}
                   selectedId={beneficiaryId}
                   onSelect={setBeneficiaryId}
+                />
+
+                <NoahRailOption
+                  quote={quote}
+                  clientId={clientId}
+                  beneficiaryId={beneficiaryId}
+                  enabled={useNoahRail}
+                  onToggle={setUseNoahRail}
+                  onPrepared={setNoahPrepared}
                 />
 
                 {bookMutation.isError && (

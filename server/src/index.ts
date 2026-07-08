@@ -1,10 +1,17 @@
 import cors from '@fastify/cors'
-import { CURRENCIES, type Currency, type CurrencyPair, type QuoteRequest } from '@rz/domain'
+import {
+  CURRENCIES,
+  type Currency,
+  type CurrencyPair,
+  type QuoteRequest,
+  type RailExecution,
+} from '@rz/domain'
 import { createMockServices } from '@rz/mock-services'
 import Fastify from 'fastify'
 import { fileURLToPath } from 'node:url'
 import { noah, noahConfigured, type PricesQuery } from './noah/client'
 import { noahEvaluation } from './noah/evaluation'
+import { executePayout, getTransaction, preparePayout, type PreparePayoutRequest } from './noah/payouts'
 
 // server/.env (gitignored) holds vendor sandbox secrets for local dev;
 // on Render they come from the dashboard environment instead
@@ -62,14 +69,25 @@ app.get('/api/noah/channels', () => noah.sellChannels())
 app.get('/api/noah/countries', () => noah.sellCountries())
 app.get('/api/rails/noah/evaluation', () => noahEvaluation())
 
+// Noah payout rail: prepare (locked quote + recipient form) → execute (sell)
+app.post<{ Body: PreparePayoutRequest }>('/api/noah/payouts/prepare', (req) =>
+  preparePayout(req.body),
+)
+app.post<{
+  Body: { formSessionId: string; cryptoAuthorizedAmount: string; fiatAmount: string; externalId: string }
+}>('/api/noah/payouts/execute', (req) => executePayout(req.body))
+app.get<{ Params: { id: string } }>('/api/noah/transactions/:id', (req) =>
+  getTransaction(req.params.id),
+)
+
 // --- rates & quotes ---
 app.get<{ Querystring: { clientId: string; pairs: string } }>('/api/rates/indicative', (req) =>
   services.rates.getIndicativeRates(parsePairs(req.query.pairs), req.query.clientId),
 )
 app.post<{ Body: QuoteRequest }>('/api/quotes', (req) => services.rates.getQuote(req.body))
-app.post<{ Params: { id: string }; Body: { beneficiaryId: string } }>(
+app.post<{ Params: { id: string }; Body: { beneficiaryId: string; rail?: RailExecution } }>(
   '/api/quotes/:id/book',
-  (req) => services.rates.bookQuote(req.params.id, req.body.beneficiaryId),
+  (req) => services.rates.bookQuote(req.params.id, req.body.beneficiaryId, req.body.rail),
 )
 app.post<{ Params: { id: string }; Body: { beneficiaryId: string } }>(
   '/api/quotes/:id/book-forward',

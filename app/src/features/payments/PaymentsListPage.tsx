@@ -185,6 +185,11 @@ export function PaymentsListPage() {
                         needs approval
                       </span>
                     )}
+                    {p.rail && (
+                      <span className="ml-1.5 rounded bg-cyan-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-cyan-700">
+                        {p.rail.provider}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 text-gray-500 tabular-nums">
                     {new Date(p.createdAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}
