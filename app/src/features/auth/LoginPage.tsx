@@ -15,7 +15,7 @@ export function LoginPage() {
   const theme = useTheme((s) => s.theme)
   const navigate = useNavigate()
 
-  const [name, setName] = useState('Priya Sharma')
+  const [name, setName] = useState('AW Fintech')
   const [role, setRole] = useState<Role>('client_user')
   const [clientId, setClientId] = useState('')
 
