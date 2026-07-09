@@ -141,24 +141,25 @@ export async function executePayout(req: {
   fiatAmount: string
   externalId: string
 }) {
-  // live sandbox returns the Transaction schema: the id field is `ID`
-  const res = await noahRequest<{ ID?: string; TransactionID?: string; Status?: string }>(
-    '/transactions/sell',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        CryptoCurrency: 'USDC_TEST',
-        CryptoAuthorizedAmount: req.cryptoAuthorizedAmount,
-        FiatAmount: req.fiatAmount,
-        FormSessionID: req.formSessionId,
-        Nonce: randomUUID(),
-        ExternalID: req.externalId,
-      }),
-    },
-  )
-  const transactionId = res.ID ?? res.TransactionID
+  // 202 SellResponse: { Transaction: { ID, Status, ... } }
+  const res = await noahRequest<{
+    Transaction?: { ID?: string; Status?: string }
+    ID?: string
+    TransactionID?: string
+  }>('/transactions/sell', {
+    method: 'POST',
+    body: JSON.stringify({
+      CryptoCurrency: 'USDC_TEST',
+      CryptoAuthorizedAmount: req.cryptoAuthorizedAmount,
+      FiatAmount: req.fiatAmount,
+      FormSessionID: req.formSessionId,
+      Nonce: randomUUID(),
+      ExternalID: req.externalId,
+    }),
+  })
+  const transactionId = res.Transaction?.ID ?? res.ID ?? res.TransactionID
   if (!transactionId) throw new Error('Noah did not return a transaction id')
-  return { transactionId, status: res.Status }
+  return { transactionId, status: res.Transaction?.Status }
 }
 
 export function getTransaction(id: string) {
