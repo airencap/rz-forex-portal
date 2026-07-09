@@ -25,11 +25,18 @@ export interface RailPriceRow {
   error?: string
 }
 
+export interface RailBalance {
+  currency: string
+  available: string
+  total: string
+}
+
 export interface NoahEvaluation {
   configured: boolean
   ok: boolean
   error?: string
   asOf: string
+  balances: RailBalance[]
   coverage: RailCoverageRow[]
   prices: RailPriceRow[]
 }
@@ -50,7 +57,7 @@ export async function noahEvaluation(): Promise<NoahEvaluation> {
 async function buildEvaluation(): Promise<NoahEvaluation> {
   const asOf = new Date().toISOString()
   if (!noahConfigured()) {
-    return { configured: false, ok: false, asOf, coverage: [], prices: [] }
+    return { configured: false, ok: false, asOf, balances: [], coverage: [], prices: [] }
   }
 
   let countriesByCurrency: Map<string, string[]>
@@ -63,7 +70,7 @@ async function buildEvaluation(): Promise<NoahEvaluation> {
       }
     }
   } catch (err) {
-    return { configured: true, ok: false, error: (err as Error).message, asOf, coverage: [], prices: [] }
+    return { configured: true, ok: false, error: (err as Error).message, asOf, balances: [], coverage: [], prices: [] }
   }
 
   // our portal's payout currencies vs Noah's sell coverage
@@ -99,5 +106,19 @@ async function buildEvaluation(): Promise<NoahEvaluation> {
     }),
   )
 
-  return { configured: true, ok: true, asOf, coverage, prices }
+  let balances: RailBalance[] = []
+  try {
+    const res = (await noah.balances()) as {
+      Items?: Array<{ CryptoCurrency?: string; Available?: string; Total?: string }>
+    }
+    balances = (res.Items ?? []).map((b) => ({
+      currency: b.CryptoCurrency ?? 'UNKNOWN',
+      available: b.Available ?? '0',
+      total: b.Total ?? '0',
+    }))
+  } catch {
+    // balance fetch failing shouldn't sink the whole evaluation
+  }
+
+  return { configured: true, ok: true, asOf, balances, coverage, prices }
 }

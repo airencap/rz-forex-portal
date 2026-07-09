@@ -26,11 +26,17 @@ interface PriceRow {
   updatedAt?: string
   error?: string
 }
+interface RailBalance {
+  currency: string
+  available: string
+  total: string
+}
 interface Evaluation {
   configured: boolean
   ok: boolean
   error?: string
   asOf: string
+  balances: RailBalance[]
   coverage: CoverageRow[]
   prices: PriceRow[]
 }
@@ -111,6 +117,29 @@ export function RailsPanel() {
             Set <code className="rounded bg-gray-100 px-1">NOAH_API_KEY</code> in the API server's
             environment to enable live evaluation data.
           </p>
+        )}
+        {data.balances.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-3 border-t border-gray-100 pt-3">
+            {data.balances.map((b) => {
+              const held = Number(b.total) - Number(b.available)
+              return (
+                <div key={b.currency} className="rounded-md bg-surface px-3 py-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                    {b.currency} balance
+                  </p>
+                  <p className="text-lg font-bold text-brand tabular-nums">
+                    {Number(b.available).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    <span className="ml-1 text-xs font-normal text-gray-400">available</span>
+                  </p>
+                  <p className="text-xs text-gray-500 tabular-nums">
+                    {Number(b.total).toLocaleString(undefined, { maximumFractionDigits: 2 })} total
+                    {held > 0.005 &&
+                      ` · ${held.toLocaleString(undefined, { maximumFractionDigits: 2 })} held against pending payouts`}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
         )}
       </Card>
 
