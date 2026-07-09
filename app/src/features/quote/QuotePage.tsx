@@ -57,7 +57,7 @@ export function QuotePage() {
         if (!noahPrepared || !noahPrepared.cryptoAuthorizedAmount)
           throw new Error('Noah rail is enabled but no prepared quote is ready')
         const quote = quoteMutation.data!
-        const result = await railsRequest<{ TransactionID?: string }>('/api/noah/payouts/execute', {
+        const result = await railsRequest<{ transactionId: string }>('/api/noah/payouts/execute', {
           method: 'POST',
           body: JSON.stringify({
             formSessionId: noahPrepared.formSessionId,
@@ -68,7 +68,7 @@ export function QuotePage() {
         })
         rail = {
           provider: 'noah' as const,
-          transactionId: result.TransactionID ?? 'unknown',
+          transactionId: result.transactionId,
           channelFee: noahPrepared.totalFeeUsd,
         }
       }

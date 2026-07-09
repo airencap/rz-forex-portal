@@ -141,7 +141,8 @@ export async function executePayout(req: {
   fiatAmount: string
   externalId: string
 }) {
-  return noahRequest<{ TransactionID?: string; Status?: string; [k: string]: unknown }>(
+  // live sandbox returns the Transaction schema: the id field is `ID`
+  const res = await noahRequest<{ ID?: string; TransactionID?: string; Status?: string }>(
     '/transactions/sell',
     {
       method: 'POST',
@@ -155,6 +156,9 @@ export async function executePayout(req: {
       }),
     },
   )
+  const transactionId = res.ID ?? res.TransactionID
+  if (!transactionId) throw new Error('Noah did not return a transaction id')
+  return { transactionId, status: res.Status }
 }
 
 export function getTransaction(id: string) {
